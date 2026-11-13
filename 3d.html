@@ -258,17 +258,18 @@
     var g = new THREE.Group();
     var md = o.md || 32;
     var wall = sidingMat(o.siding, 19), wall2 = sidingMat(o.siding, 10);
-    var mx = -4, mw = 20, mh = 19, mz = 6 - md / 2;
+    // City approval: two-storey homes up to 27 ft tall (1.2 + 17.5 + 8 = 26.7 ft to the ridge).
+    var mx = -4, mw = 20, mh = 17.5, mz = 6 - md / 2;
     box(g, mw + 0.4, 1.2, md + 0.4, C.found, mx, 0.6, mz);
     box(g, mw, mh, md, wall, mx, 1.2 + mh / 2, mz);
-    box(g, mw + 0.6, 0.5, md + 0.6, C.trim, mx, 1.2 + 9.8, mz, true);
-    var r = gable(mw, md, 1.2 + mh, 8.5, o.roof || C.roof, wall, 1.4); r.position.set(mx, 0, mz); g.add(r);
+    box(g, mw + 0.6, 0.5, md + 0.6, C.trim, mx, 1.2 + 9.4, mz, true);
+    var r = gable(mw, md, 1.2 + mh, 8, o.roof || C.roof, wall, 1.4); r.position.set(mx, 0, mz); g.add(r);
     var wx = 10, ww = 8, wd = o.wd || Math.max(18, md - 4), wz = 4 - wd / 2, wh = 9.5;
     box(g, ww + 0.4, 1.2, wd + 0.4, C.found, wx, 0.6, wz);
     box(g, ww, wh, wd, wall2, wx, 1.2 + wh / 2, wz);
     var r2 = gable(ww, wd, 1.2 + wh, 4.0, o.roof || C.roof, wall2, 1.1); r2.position.set(wx, 0, wz); g.add(r2);
     // front: upstairs pair under the gable, living-room window, front door, wing window
-    win(g, 'front', mx, 15.5, 6.05, 7.5, 5.2, 2);
+    win(g, 'front', mx, 14.6, 6.05, 7.5, 5.0, 2);
     win(g, 'front', mx - 5, 6.2, 6.05, 6.5, 5.2, 2);
     box(g, 3.6, 7.6, 0.3, C.trim, mx + 5, 5.0, 6.05, true);
     box(g, 3.0, 7.0, 0.4, o.door, mx + 5, 4.75, 6.1, true);
@@ -278,10 +279,10 @@
     [-0.32, 0, 0.3].forEach(function (f) {
       var z = mz + f * md;
       win(g, 'left', mx - mw / 2 - 0.05, 6.2, z, 4, 4.6, 2);
-      win(g, 'left', mx - mw / 2 - 0.05, 15.5, z, 4, 4.2, 2);
+      win(g, 'left', mx - mw / 2 - 0.05, 14.6, z, 4, 4.0, 2);
     });
     win(g, 'back', mx - 4, 6.2, mz - md / 2 - 0.05, 5, 4.6, 2);
-    win(g, 'back', mx + 4, 15.5, mz - md / 2 - 0.05, 5, 4.2, 2);
+    win(g, 'back', mx + 4, 14.6, mz - md / 2 - 0.05, 5, 4.0, 2);
     win(g, 'right', wx + ww / 2 + 0.05, 6.0, wz - wd * 0.2, 4, 4.4, 2);
     win(g, 'right', wx + ww / 2 + 0.05, 6.0, wz + wd * 0.25, 4, 4.4, 2);
     // covered front porch
@@ -344,7 +345,7 @@
       var n = Math.max(1, Math.floor(len / 11));
       for (var w = 0; w < n; w++) {
         var t = (w + 0.5) / n, x = a[0] + dx * t + nx * 0.1, z = a[1] + dz * t + nz * 0.1;
-        [6.2, 15.5].forEach(function (y) {
+        [6.2, 14.6].forEach(function (y) {
           var g = new THREE.Group();
           box(g, 4.4, 5.0, 0.3, C.trim, 0, 0, 0, true);
           box(g, 3.7, 4.3, 0.4, mat(C.glass, { roughness: 0.25, metalness: 0.2 }), 0, 0, 0.05, true);
@@ -467,8 +468,8 @@
         // Cottage Lane, community room): real outline, two storeys, windows on every
         // long wall, and a roof broken into sections along the building's length.
         var wm = sidingMat(col.siding, 19);
-        extrude(b.pts, 20.2, wm);
-        addWindows(b.pts, 20.2);
+        extrude(b.pts, 18.7, wm);
+        addWindows(b.pts, 18.7);
         var nSec = Math.max(1, Math.round(o.L / 26)), secL = o.L / nSec, rot = Math.atan2(o.ux, o.uz);
         for (var k = 0; k < nSec; k++) {
           var off = -o.L / 2 + secL * (k + 0.5);
@@ -477,8 +478,8 @@
           if (!inside(b.pts, sx, sz)) continue;
           var hip = new THREE.ConeGeometry(Math.SQRT1_2, 1, 4); hip.rotateY(Math.PI / 4);
           var rf = new THREE.Mesh(hip, mat(C.roof));
-          rf.scale.set(o.W * 1.04, Math.min(9, o.W * 0.32), secL * 1.04);
-          rf.rotation.y = rot; rf.position.set(sx, 20.2 + rf.scale.y / 2, sz);
+          rf.scale.set(o.W * 1.04, Math.min(8, o.W * 0.3), secL * 1.04);
+          rf.rotation.y = rot; rf.position.set(sx, 18.7 + rf.scale.y / 2, sz);
           rf.castShadow = true; rf.receiveShadow = true; scene.add(rf);
         }
       }
@@ -524,8 +525,13 @@
     var zmin = Math.min.apply(null, north.map(function (b) { return Math.min.apply(null, b.pts.map(function (p) { return p[1]; })); }));
     var xmin = Math.min.apply(null, north.map(function (b) { return Math.min.apply(null, b.pts.map(function (p) { return p[0]; })); }));
     var xmax = Math.max.apply(null, north.map(function (b) { return Math.max.apply(null, b.pts.map(function (p) { return p[0]; })); }));
-    var fz = zmin - 7;
-    for (var x = xmin - 6; x < xmax + 6; x += 8) box(scene, 8.2, 6, 0.4, 0x9b7b5a, x + 4, 3, fz);
+    // City approval: a stucco wall along Hamilton Parkway matching the Newport and
+    // Sunny Cove neighbourhood walls; wood fencing for the private yards inside it.
+    var fz = zmin - 7, wl = (xmax + 6) - (xmin - 6), wxm = (xmin + xmax) / 2;
+    box(scene, wl, 6.5, 1.2, 0xe6dcc8, wxm, 3.25, fz);
+    box(scene, wl + 0.6, 0.45, 1.7, 0xd3c7ae, wxm, 6.7, fz);
+    for (var px2 = xmin - 6; px2 <= xmax + 6; px2 += 24) box(scene, 2, 7.4, 2, 0xd9ceb8, px2, 3.7, fz);
+    for (var x = xmin - 2; x < xmax + 2; x += 8) box(scene, 8.2, 5.5, 0.3, 0x9b7b5a, x + 4, 2.75, zmin - 2.5);
     flatPoly([[xmin - 8, fz - 1], [xmax + 8, fz - 1], [xmax + 8, zmin], [xmin - 8, zmin]], 0x8db05f, 0.04);
   })();
 
@@ -539,13 +545,16 @@
     // walkway along the front porches of the north row, and up the east row
     ribbon([[-62, 31], [CX + 18, 33]], 5, C.concrete, 0.11);
     ribbon([[CX + 18, 33], [CX + 22, CZ + 120]], 5, C.concrete, 0.11);
-    // decomposed-granite loop and plaza
-    var ring = new THREE.Mesh(new THREE.RingGeometry(26, 31, 56), mat(C.dg));
-    ring.rotation.x = -Math.PI / 2; ring.position.set(CX - 8, 0.1, CZ); ring.receiveShadow = true; scene.add(ring);
+    // City approval: a walkway encircles the perimeter of the central common area,
+    // with a decomposed-granite pathway inside the courtyard.
+    var ring = new THREE.Mesh(new THREE.RingGeometry(26, 29.5, 64), mat(C.concrete));
+    ring.rotation.x = -Math.PI / 2; ring.position.set(52, 0.1, 86); ring.scale.set(1, 1.3, 1); ring.receiveShadow = true; scene.add(ring);
+    var dgLoop = new THREE.Mesh(new THREE.RingGeometry(12.5, 15, 48), mat(C.dg));
+    dgLoop.rotation.x = -Math.PI / 2; dgLoop.position.set(52, 0.105, 92); dgLoop.receiveShadow = true; scene.add(dgLoop);
     var plaza = new THREE.Mesh(new THREE.CircleGeometry(13, 32), mat(0xd2ccbf));
     plaza.rotation.x = -Math.PI / 2; plaza.position.set(CX - 8, 0.12, CZ - 22); plaza.receiveShadow = true; scene.add(plaza);
     ribbon([[CX - 8, CZ - 9], [CX - 8, CZ - 26], [-2, 31]], 4.5, C.dg, 0.1);
-    ribbon([[CX - 34, CZ + 8], [CX - 70, CZ + 70]], 4.5, C.dg, 0.1);
+    ribbon([[80, 122], [86, 140], [88, 165]], 4.5, C.concrete, 0.1); // south walk toward Cottage Lane / guest parking
   })();
   // gazebo / vine pergola with outdoor kitchen
   pergola(CX - 16, CZ - 30, 16, 12, 9);
@@ -559,14 +568,54 @@
     box(ch, 2.2, 0.4, 2.2, C.wood, 0, 1.4, 0); box(ch, 2.2, 2.4, 0.3, C.wood, 0, 2.5, -1.1);
     ch.position.set(CX + 12 + Math.cos(a) * 6, 0, CZ + 6 + Math.sin(a) * 6); ch.lookAt(CX + 12, 0, CZ + 6); scene.add(ch);
   }
+  // dining tables beside the BBQ island (outdoor kitchen)
+  [[CX - 18, CZ - 8], [CX + 2, CZ - 8]].forEach(function (p) {
+    box(scene, 6, 0.3, 3, C.wood, p[0], 2.6, p[1]);
+    [-2.2, 2.2].forEach(function (dx) { box(scene, 0.3, 2.5, 2.4, 0x444444, p[0] + dx, 1.25, p[1]); });
+    [-2.4, 2.4].forEach(function (dz) { box(scene, 6, 0.3, 1, C.wood, p[0], 1.5, p[1] + dz); });
+  });
+  // public art (City approval): an interactive chrome sculpture bicycle, 6-8 ft tall,
+  // at the south end of the central common area, reached by two concrete paths
+  var art = { x: 78, z: 127 };
+  (function () {
+    var g = new THREE.Group(), chrome = mat(0xdfe6ee, { metalness: 0.9, roughness: 0.15 });
+    [-3.4, 3.4].forEach(function (dx, i) {
+      var wheel = new THREE.Mesh(new THREE.TorusGeometry(2.6, 0.22, 10, 36), chrome);
+      wheel.position.set(dx, 2.9, 0); g.add(wheel);
+      var disc = new THREE.Mesh(new THREE.CircleGeometry(2.45, 32), new THREE.MeshStandardMaterial({ color: [0x3fa7d6, 0xe8a33d][i], transparent: true, opacity: 0.55, side: THREE.DoubleSide }));
+      disc.position.set(dx, 2.9, 0); g.add(disc);
+    });
+    function bar(x1, y1, x2, y2) {
+      var len = Math.hypot(x2 - x1, y2 - y1), b = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, len, 8), chrome);
+      b.position.set((x1 + x2) / 2, (y1 + y2) / 2, 0); b.rotation.z = Math.atan2(y2 - y1, x2 - x1) - Math.PI / 2; b.castShadow = true; g.add(b);
+    }
+    bar(-3.4, 2.9, 0, 3.0); bar(0, 3.0, 2.2, 5.6); bar(-0.9, 5.4, 2.2, 5.6); bar(-0.9, 5.4, 0, 3.0); bar(-3.4, 2.9, -0.9, 5.4); bar(2.2, 5.6, 3.4, 2.9);
+    bar(-0.9, 5.4, -1.2, 6.2); bar(2.2, 5.6, 2.5, 6.8);
+    box(g, 1.6, 0.3, 0.6, chrome, -1.2, 6.3, 0, true); box(g, 0.25, 0.25, 2.2, chrome, 2.5, 6.8, 0, true);
+    box(g, 9, 0.6, 3, 0xcfc8bc, 0, 0.3, 0);
+    g.position.set(art.x, 0, art.z); g.rotation.y = 0.35; scene.add(g);
+    ribbon([[art.x - 16, art.z - 8], [art.x - 3, art.z]], 4, C.concrete, 0.11);
+    ribbon([[art.x + 4, art.z - 16], [art.x + 1, art.z - 3]], 4, C.concrete, 0.11);
+  })();
+  // entry arbor over Cottage Lane where it leaves Hamilton Parkway
+  (function () {
+    var e = null; cottageLn.forEach(function (r) { r.pts.forEach(function (p, i) { if (!e || p[1] < e.p[1]) e = { p: p, r: r, i: i }; }); });
+    if (!e) return;
+    var q = e.r.pts[e.i === 0 ? 1 : e.i - 1], dx = q[0] - e.p[0], dz = q[1] - e.p[1], l = Math.hypot(dx, dz);
+    var ux = dx / l, uz = dz / l, cx = e.p[0] + ux * 40, cz = e.p[1] + uz * 40, nx = -uz, nz = ux, g = new THREE.Group();
+    [-13, 13].forEach(function (s) { [-2, 2].forEach(function (t) { box(g, 1.2, 11, 1.2, C.trim, s, 5.5, t); }); });
+    box(g, 30, 1, 1, C.trim, 0, 11.2, -2); box(g, 30, 1, 1, C.trim, 0, 11.2, 2);
+    for (var k = -12; k <= 12; k += 2) box(g, 0.4, 0.6, 6, C.trim, k, 11.9, 0, true);
+    g.position.set(cx, 0, cz); g.rotation.y = Math.atan2(nx, nz) + Math.PI / 2; scene.add(g);
+  })();
   // community garden beds and planting
-  for (var gi = 0; gi < 6; gi++) box(scene, 4, 1.6, 9, 0x8a6a4a, CX - 30 + (gi % 3) * 7, 0.8, CZ + 20 + Math.floor(gi / 3) * 12);
+  for (var gi = 0; gi < 6; gi++) box(scene, 4, 1.6, 9, 0x8a6a4a, 62 + (gi % 3) * 6, 0.8, 100 + Math.floor(gi / 3) * 11);
   for (var si = 0; si < 26; si++) {
-    var aa = si / 26 * Math.PI * 2, rr = 20 + (si % 4) * 2.5;
+    var aa = si / 26 * Math.PI * 2, rr = 17 + (si % 4) * 1.8;
     var sh = new THREE.Mesh(new THREE.SphereGeometry(1.1 + (si % 3) * 0.4, 10, 8), mat([0x6e9a45, 0xa2b85a, 0xc98f4a, 0x7c8f50][si % 4]));
-    sh.position.set(CX - 8 + Math.cos(aa) * rr, 0.9, CZ + Math.sin(aa) * rr); sh.castShadow = true; scene.add(sh);
+    sh.position.set(52 + Math.cos(aa) * rr, 0.9, 92 + Math.sin(aa) * rr * 1.2); sh.castShadow = true; scene.add(sh);
   }
-  [[CX + 30, CZ - 30], [CX - 40, CZ - 20], [CX + 25, CZ + 35], [CX - 45, CZ + 45], [-40, 40], [40, 40]].forEach(function (p, i) { tree(p[0], p[1], 0.8 + (i % 3) * 0.12, [0x8db33a, 0xc9b83a, 0x6e9e3c][i % 3]); });
+  [[78, 58], [26, 52], [86, 100], [30, 112], [-40, 36], [92, 38]].forEach(function (p, i) { tree(p[0], p[1], 0.8 + (i % 3) * 0.12, [0x8db33a, 0xc9b83a, 0x6e9e3c][i % 3]); });
   // front-yard planting at No. 24
   for (var j = 0; j < 12; j++) {
     var shb = new THREE.Mesh(new THREE.SphereGeometry(0.9 + (j % 3) * 0.3, 10, 8), mat([0x7a8f5a, 0x9aa66a, 0x8b5a4a, 0x6f8c4a][j % 4]));
@@ -611,8 +660,10 @@
       text: 'The homes cluster around a central garden with gazebos, outdoor kitchens/BBQs, fire pits and seating areas.' },
     { name: 'Fire pit', v: new THREE.Vector3(CX + 12, 7, CZ + 6), photos: ['32-community-firepit', '31-community-pergola'], approx: true,
       text: 'Community fire pit with Adirondack-style seating.' },
-    { name: 'Community garden', v: new THREE.Vector3(CX - 23, 6, CZ + 26), photos: ['33-community-green'], approx: true,
+    { name: 'Community garden', v: new THREE.Vector3(68, 6, 106), photos: ['33-community-green'], approx: true,
       text: 'Landscaped commons with a community garden and decomposed-granite paths.' },
+    { name: 'Public art', v: new THREE.Vector3(art.x, 10, art.z), photos: [], approx: true,
+      text: 'An interactive sculpture of a bicycle, about 6 to 8 ft tall, in reflective stainless steel with colored translucent wheels. Residents and visitors can write on it with dry-erase markers. It stands at the south end of the central common area, per the City of Novato design approval.' },
     { name: 'Community room', v: new THREE.Vector3(roomC[0], 28, roomC[1]), photos: [], approx: true,
       text: 'Residents can use the Community Center, with a kitchen, flat-screen TV and comfortable seating.' },
     { name: 'Entrance from Hamilton Pkwy', v: new THREE.Vector3(entry[0], 9, entry[1]), photos: ['34-hamilton-cottages-entry'],
