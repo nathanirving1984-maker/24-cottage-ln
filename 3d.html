@@ -4,9 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>3D View | 24 Cottage Ln, Novato, CA 94949</title>
-<meta name="description" content="Explore an illustrative 3D model of 24 Cottage Ln in Hamilton Cottages, Novato. Fly around the home and tap the markers to see listing photos.">
+<meta name="description" content="Explore a 3D model of 24 Cottage Ln in the Hamilton Cottages pocket neighborhood, Novato, built on the real neighborhood layout. Fly around and tap the markers to see listing photos.">
 <meta property="og:title" content="24 Cottage Ln, Novato | 3D View">
-<meta property="og:description" content="Fly around an illustrative 3D model of 24 Cottage Ln and tap markers to see the listing photos.">
+<meta property="og:description" content="Fly around 24 Cottage Ln and the Hamilton Cottages community, and tap markers to see the listing photos.">
 <meta property="og:image" content="images/01-exterior-front.jpg">
 <style>
   :root { --navy: #012169; --gold: #B08D57; --cream: #F7F5F1; --ink: #1d2433; }
@@ -39,6 +39,7 @@
 
   .info { position: fixed; z-index: 20; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,.95); border-top: 1px solid rgba(0,0,0,.08); font-size: .72rem; color: #4b5563; padding: 8px 16px; display: flex; gap: 6px 14px; flex-wrap: wrap; align-items: center; justify-content: center; text-align: center; }
   .info b { color: var(--navy); }
+  .info a { color: var(--navy); text-decoration: underline; }
   .info .warn { color: #7a5a1e; font-weight: bold; }
 
   .modal { position: fixed; inset: 0; z-index: 50; background: rgba(10,16,32,.78); display: none; align-items: center; justify-content: center; padding: 16px; }
@@ -63,7 +64,7 @@
     .views button { padding: 6px 10px; font-size: .72rem; }
     .pin .lbl { font-size: .66rem; padding: 4px 7px 4px 5px; }
     .pin .lbl span { display: none; }
-    .pin.home .lbl span, .pin.open-lbl .lbl span { display: inline; }
+    .pin.home .lbl span { display: inline; }
     .hint { bottom: 70px; font-size: .68rem; white-space: normal; text-align: center; width: max-content; max-width: calc(100% - 32px); }
     .info { font-size: .62rem; padding: 5px 10px; gap: 2px 8px; }
     .info .long { display: none; }
@@ -95,10 +96,11 @@
 <div class="hint" id="hint">Drag to fly around &middot; Pinch or scroll to zoom &middot; Tap a marker for photos</div>
 
 <div class="info">
-  <span class="warn">Illustrative model, not to scale.</span>
-  <span class="long">Based on listing photos; layout, room locations and surroundings are approximate.</span>
+  <span class="warn">Illustrative model.</span>
+  <span class="long">Building positions and streets from map data; house details from listing photos. Interior room locations and some community features are approximate.</span>
   <span><b>Nathan Irving, REALTOR&reg;</b> &middot; DRE# 02414117 &middot; Coldwell Banker Realty</span>
   <span>Listed by Suzie Fitzpatrick, Coldwell Banker Realty &middot; MLS# 326088180 &middot; Equal Housing Opportunity</span>
+  <span>Map data &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a></span>
 </div>
 
 <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="m-title">
@@ -120,17 +122,28 @@
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="site-data.js"></script>
 <script>
 (function () {
   // ---------------------------------------------------------------
-  // Units are feet. +z points toward the front walkway / common green.
-  // Everything here is an approximation drawn from the listing photos.
+  // Units are feet. x = east, z = south, y = up. Origin = centre of
+  // 24 Cottage Ln's mapped footprint. Building outlines and streets come
+  // from OpenStreetMap (site-data.js); the subject home is modelled in
+  // detail from the listing photos and fitted onto its real footprint.
   // ---------------------------------------------------------------
+  var SITE = window.SITE;
   var C = {
     siding: 0x8d97a2, trim: 0xf3f2ee, roof: 0x41454b, door: 0xb0442c, glass: 0x34404d,
     found: 0x77787a, porchFloor: 0x9b9084, wood: 0x8a5a3c, concrete: 0xd9d4c8,
-    grass: 0x86a85a, dg: 0xcbb68c, asphalt: 0x55585c, vine: 0x5f8f3a
+    grass: 0x88a95c, lawn: 0x7ea552, dg: 0xcdb98f, asphalt: 0x5a5d61, vine: 0x5f8f3a,
+    stucco: 0xe2d3b8, tile: 0xb4664a
   };
+  // Craftsman palette seen on the Hamilton Cottages homes in satellite/street imagery.
+  var COTTAGE_COLORS = [
+    { siding: 0x9aa39a, door: 0x3e5a74 }, { siding: 0xb7a88d, door: 0x7a3b2e }, { siding: 0x7f8f94, door: 0xb0442c },
+    { siding: 0xa9b1b8, door: 0x2f3f55 }, { siding: 0xc4b59a, door: 0x5a6b45 }, { siding: 0x8e8a83, door: 0x7a3b2e },
+    { siding: 0x9da7ae, door: 0x3e5a74 }, { siding: 0xb3ae9a, door: 0x2f3f55 }
+  ];
 
   var host = document.getElementById('scene');
   var renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -142,42 +155,42 @@
 
   var scene = new THREE.Scene();
   scene.background = new THREE.Color(0xcfe3f3);
-  scene.fog = new THREE.Fog(0xcfe3f3, 260, 520);
+  scene.fog = new THREE.Fog(0xcfe3f3, 420, 900);
 
-  var camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.5, 1200);
-  camera.position.set(44, 72, 66);
-
+  var camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.5, 2000);
   var controls = new THREE.OrbitControls(camera, renderer.domElement);
-  controls.target.set(-1, 4, -10);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
-  controls.minDistance = 12;
-  controls.maxDistance = 320;
+  controls.minDistance = 10;
+  controls.maxDistance = 520;
   controls.maxPolarAngle = Math.PI / 2 - 0.04;
-  controls.autoRotateSpeed = 0.7;
-  controls.update();
+  controls.autoRotateSpeed = 0.6;
 
   scene.add(new THREE.HemisphereLight(0xe8f3ff, 0x6b7d4a, 0.72));
   var sun = new THREE.DirectionalLight(0xfff4e0, 0.85);
-  sun.position.set(70, 110, 60);
+  sun.position.set(150, 220, 160);
+  sun.target.position.set(40, 0, 60);
+  scene.add(sun.target);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
-  var sc = sun.shadow.camera; sc.left = -130; sc.right = 130; sc.top = 130; sc.bottom = -130; sc.near = 10; sc.far = 400;
-  sun.shadow.bias = -0.0005;
+  sun.shadow.mapSize.set(4096, 4096);
+  var sc = sun.shadow.camera; sc.left = -260; sc.right = 260; sc.top = 260; sc.bottom = -260; sc.near = 20; sc.far = 700;
+  sun.shadow.bias = -0.0006;
   scene.add(sun);
 
   // ---------- helpers ----------
   var matCache = {};
   function mat(color, opts) {
     var key = color + JSON.stringify(opts || {});
-    if (!matCache[key]) matCache[key] = new THREE.MeshStandardMaterial(Object.assign({ color: color, roughness: 0.85, metalness: 0 }, opts || {}));
+    if (!matCache[key]) matCache[key] = new THREE.MeshStandardMaterial(Object.assign({ color: color, roughness: 0.88, metalness: 0 }, opts || {}));
     return matCache[key];
   }
+  var sidingCache = {};
   function sidingMat(color, h) {
+    var key = color + ':' + Math.round(h);
+    if (sidingCache[key]) return sidingCache[key];
     var cv = document.createElement('canvas'); cv.width = 64; cv.height = 64;
     var g = cv.getContext('2d');
-    var c = new THREE.Color(color);
-    g.fillStyle = '#' + c.getHexString(); g.fillRect(0, 0, 64, 64);
+    g.fillStyle = '#' + new THREE.Color(color).getHexString(); g.fillRect(0, 0, 64, 64);
     g.fillStyle = 'rgba(0,0,0,0.13)';
     for (var y = 0; y < 64; y += 16) g.fillRect(0, y, 64, 2);
     g.fillStyle = 'rgba(0,0,0,0.05)';
@@ -185,7 +198,7 @@
     var t = new THREE.CanvasTexture(cv);
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
     t.repeat.set(4, Math.max(1, h / 2.2));
-    return new THREE.MeshStandardMaterial({ map: t, roughness: 0.9 });
+    return (sidingCache[key] = new THREE.MeshStandardMaterial({ map: t, roughness: 0.9 }));
   }
   function box(parent, w, h, d, m, x, y, z, noShadow) {
     var mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), typeof m === 'number' ? mat(m) : m);
@@ -199,7 +212,7 @@
     mesh.position.set(x, y, z); mesh.castShadow = true; mesh.receiveShadow = true;
     parent.add(mesh); return mesh;
   }
-  // Gable roof with the ridge running along local z, centred on (0, eave, 0).
+  // Gable roof with the ridge along local z, centred on (0, eave, 0).
   function gable(w, d, eave, rise, roofColor, wallMat, oh) {
     oh = oh == null ? 1.3 : oh;
     var g = new THREE.Group();
@@ -215,7 +228,6 @@
     [d / 2 - 0.3, -d / 2].forEach(function (z) {
       var m = new THREE.Mesh(tri, wallMat); m.position.set(0, eave, z); m.castShadow = true; m.receiveShadow = true; g.add(m);
     });
-    // fascia trim along the gable ends
     [-1, 1].forEach(function (s) {
       [d / 2 + oh, -d / 2 - oh].forEach(function (z) {
         var f = box(g, len, 0.35, 0.35, C.trim, 0, 0, 0, true);
@@ -225,7 +237,6 @@
     });
     return g;
   }
-  // A window on a wall. face: 'front' (+z), 'back' (-z), 'left' (-x), 'right' (+x)
   function win(parent, face, x, y, z, w, h, panes) {
     var g = new THREE.Group();
     box(g, w + 0.7, h + 0.7, 0.3, C.trim, 0, 0, 0, true);
@@ -239,222 +250,373 @@
     parent.add(g);
   }
 
-  // ---------- a Hamilton-style craftsman cottage ----------
-  // Local frame: front face of main block at z = 6, main block centred x = -4.
+  // ---------- Hamilton Cottages craftsman home ----------
+  // Local frame: front (porch side) faces +z. Main two-storey block x -14..6,
+  // one-storey wing x 6..14 set back from the porch (as at No. 24).
+  // md = depth of the main block; the porch adds 7 ft in front.
   function cottage(o) {
     var g = new THREE.Group();
+    var md = o.md || 32;
     var wall = sidingMat(o.siding, 19), wall2 = sidingMat(o.siding, 10);
-    var mx = -4, mz = -10, mw = 20, md = 32, mh = 19;
-    // foundation + main two-storey block
+    var mx = -4, mw = 20, mh = 19, mz = 6 - md / 2;
     box(g, mw + 0.4, 1.2, md + 0.4, C.found, mx, 0.6, mz);
     box(g, mw, mh, md, wall, mx, 1.2 + mh / 2, mz);
-    box(g, mw + 0.6, 0.5, md + 0.6, C.trim, mx, 1.2 + 9.8, mz, true); // floor band
-    var r = gable(mw, md, 1.2 + mh, 8.5, o.roof, wall, 1.4); r.position.set(mx, 0, mz); g.add(r);
-    // one-storey side wing (primary suite side)
-    var wx = 10.5, ww = 9, wd = 24, wz = -8, wh = 9.5; // mirrored homes are flipped as a whole below
+    box(g, mw + 0.6, 0.5, md + 0.6, C.trim, mx, 1.2 + 9.8, mz, true);
+    var r = gable(mw, md, 1.2 + mh, 8.5, o.roof || C.roof, wall, 1.4); r.position.set(mx, 0, mz); g.add(r);
+    var wx = 10, ww = 8, wd = o.wd || Math.max(18, md - 4), wz = 4 - wd / 2, wh = 9.5;
     box(g, ww + 0.4, 1.2, wd + 0.4, C.found, wx, 0.6, wz);
     box(g, ww, wh, wd, wall2, wx, 1.2 + wh / 2, wz);
-    var r2 = gable(ww, wd, 1.2 + wh, 4.2, o.roof, wall2, 1.1); r2.position.set(wx, 0, wz); g.add(r2);
-    // front windows + door
-    win(g, 'front', mx, 15.5, 6.05, 7.5, 5.2, 2);           // upstairs pair under the gable
-    win(g, 'front', mx - 5, 6.2, 6.05, 6.5, 5.2, 2);        // living room
+    var r2 = gable(ww, wd, 1.2 + wh, 4.0, o.roof || C.roof, wall2, 1.1); r2.position.set(wx, 0, wz); g.add(r2);
+    // front: upstairs pair under the gable, living-room window, front door, wing window
+    win(g, 'front', mx, 15.5, 6.05, 7.5, 5.2, 2);
+    win(g, 'front', mx - 5, 6.2, 6.05, 6.5, 5.2, 2);
     box(g, 3.6, 7.6, 0.3, C.trim, mx + 5, 5.0, 6.05, true);
-    box(g, 3.0, 7.0, 0.4, o.door, mx + 5, 4.75, 6.1, true); // front door
+    box(g, 3.0, 7.0, 0.4, o.door, mx + 5, 4.75, 6.1, true);
     box(g, 2.2, 0.9, 0.45, mat(C.glass), mx + 5, 6.9, 6.2, true);
-    win(g, 'front', wx, 6.0, -8 + wd / 2 + 0.05, 3.4, 4.6, 1); // wing front
-    // side + rear windows
-    [-14, -4, 6].forEach(function (z) {
-      win(g, 'left', mx - mw / 2 - 0.05, 6.2, mz + z, 4, 4.6, 2);
-      win(g, 'left', mx - mw / 2 - 0.05, 15.5, mz + z, 4, 4.2, 2);
+    win(g, 'front', wx, 6.0, 4.05, 3.4, 4.6, 1);
+    // sides and rear
+    [-0.32, 0, 0.3].forEach(function (f) {
+      var z = mz + f * md;
+      win(g, 'left', mx - mw / 2 - 0.05, 6.2, z, 4, 4.6, 2);
+      win(g, 'left', mx - mw / 2 - 0.05, 15.5, z, 4, 4.2, 2);
     });
     win(g, 'back', mx - 4, 6.2, mz - md / 2 - 0.05, 5, 4.6, 2);
     win(g, 'back', mx + 4, 15.5, mz - md / 2 - 0.05, 5, 4.2, 2);
-    win(g, 'right', wx + ww / 2 + 0.05, 6.0, wz - 4, 4, 4.4, 2);
+    win(g, 'right', wx + ww / 2 + 0.05, 6.0, wz - wd * 0.2, 4, 4.4, 2);
+    win(g, 'right', wx + ww / 2 + 0.05, 6.0, wz + wd * 0.25, 4, 4.4, 2);
     // covered front porch
     var pz = 9.5;
     box(g, mw, 1.2, 7, C.porchFloor, mx, 0.6, pz);
-    var proof = box(g, mw + 1, 0.6, 8, o.roof, mx, 11.1, pz + 0.3); proof.rotation.x = 0.07;
+    var proof = box(g, mw + 1, 0.6, 8, o.roof || C.roof, mx, 11.1, pz + 0.3); proof.rotation.x = 0.07;
     box(g, mw + 1.2, 1.0, 0.4, C.trim, mx, 10.4, pz + 4.2, true);
     [-9.4, 0.2, 9.4].forEach(function (dx) { box(g, 0.9, 9.4, 0.9, C.trim, mx + dx, 1.2 + 4.7, pz + 3.1); });
     box(g, 0.9, 9.4, 0.9, C.trim, mx - 9.4, 1.2 + 4.7, 6.6);
-    // horizontal-board railing with an opening at the steps
-    function rail(x1, x2, z) { var w = x2 - x1; for (var k = 0; k < 4; k++) box(g, w, 0.45, 0.25, C.trim, (x1 + x2) / 2, 1.9 + k * 0.8, z, true); }
+    function rail(x1, x2, z) { for (var k = 0; k < 4; k++) box(g, x2 - x1, 0.45, 0.25, C.trim, (x1 + x2) / 2, 1.9 + k * 0.8, z, true); }
     rail(mx - 9.4, mx + 3.2, pz + 3.1);
     rail(mx + 7.6, mx + 9.4, pz + 3.1);
     for (var k = 0; k < 4; k++) box(g, 0.25, 0.45, 6.2, C.trim, mx - 9.4, 1.9 + k * 0.8, pz, true);
-    box(g, 4.2, 0.6, 2.4, C.concrete, mx + 5.4, 0.3, pz + 4.6); // step
-    if (o.mirror) g.scale.x = -1;
+    box(g, 4.2, 0.6, 2.4, C.concrete, mx + 5.4, 0.3, pz + 4.6);
     return g;
   }
 
-  // ---------- ground, lots, paths ----------
-  var ground = new THREE.Mesh(new THREE.PlaneGeometry(900, 900), mat(C.grass));
-  ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
-  function flat(w, d, color, x, z, y) {
-    var m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mat(color));
-    m.rotation.x = -Math.PI / 2; m.position.set(x, y || 0.04, z); m.receiveShadow = true; scene.add(m); return m;
+  // ---------- geometry from map footprints ----------
+  function centroid(pts) { var x = 0, z = 0; pts.forEach(function (p) { x += p[0]; z += p[1]; }); return [x / pts.length, z / pts.length]; }
+  function polyArea(pts) { var a = 0; for (var i = 0; i < pts.length; i++) { var p = pts[i], q = pts[(i + 1) % pts.length]; a += p[0] * q[1] - q[0] * p[1]; } return Math.abs(a / 2); }
+  // Minimum-area oriented rectangle: centre, long-axis unit vector u, long side L, short side W.
+  function obb(pts) {
+    var best = null;
+    for (var i = 0; i < pts.length; i++) {
+      var p = pts[i], q = pts[(i + 1) % pts.length];
+      var ang = Math.atan2(q[1] - p[1], q[0] - p[0]), ux = Math.cos(ang), uz = Math.sin(ang), vx = -uz, vz = ux;
+      var a0 = 1e9, a1 = -1e9, b0 = 1e9, b1 = -1e9;
+      pts.forEach(function (r) { var a = r[0] * ux + r[1] * uz, b = r[0] * vx + r[1] * vz; a0 = Math.min(a0, a); a1 = Math.max(a1, a); b0 = Math.min(b0, b); b1 = Math.max(b1, b); });
+      var area = (a1 - a0) * (b1 - b0);
+      if (!best || area < best.area) best = { area: area, ux: ux, uz: uz, vx: vx, vz: vz, a: [a0, a1], b: [b0, b1] };
+    }
+    var ca = (best.a[0] + best.a[1]) / 2, cb = (best.b[0] + best.b[1]) / 2;
+    var la = best.a[1] - best.a[0], lb = best.b[1] - best.b[0];
+    var o = { cx: ca * best.ux + cb * best.vx, cz: ca * best.uz + cb * best.vz };
+    if (la >= lb) { o.ux = best.ux; o.uz = best.uz; o.L = la; o.W = lb; } else { o.ux = best.vx; o.uz = best.vz; o.L = lb; o.W = la; }
+    return o;
   }
-  flat(150, 4.5, C.concrete, 0, 17.5);            // front walkway along the homes
-  flat(150, 4.5, C.concrete, 0, 63.5);            // walkway across the green
-  flat(150, 12, C.asphalt, 0, -56);               // rear alley
-  flat(14, 300, C.asphalt, 84, 20);               // street on the east side
-  flat(4, 300, C.concrete, 75, 20, 0.05);         // sidewalk
-  flat(4.2, 3.5, C.concrete, 1.4, 14.2, 0.05);    // walk from our steps
-
-  // lot outline for 24 Cottage Ln (approximate)
-  (function () {
-    flat(32, 63, 0x93b562, 0, -16.5, 0.03); // slightly brighter lawn inside the lot
-    var gold = new THREE.MeshBasicMaterial({ color: 0xd4a74a });
-    [[0, 15, 32, 0.7], [0, -48, 32, 0.7], [-16, -16.5, 0.7, 63], [16, -16.5, 0.7, 63]].forEach(function (s) {
-      var m = new THREE.Mesh(new THREE.PlaneGeometry(s[2], s[3]), gold);
-      m.rotation.x = -Math.PI / 2; m.position.set(s[0], 0.09, s[1]); scene.add(m);
+  function extrude(pts, h, m) {
+    var s = new THREE.Shape();
+    pts.forEach(function (p, i) { if (i === 0) s.moveTo(p[0], -p[1]); else s.lineTo(p[0], -p[1]); });
+    var mesh = new THREE.Mesh(new THREE.ExtrudeGeometry(s, { depth: h, bevelEnabled: false }), m);
+    mesh.rotation.x = -Math.PI / 2; mesh.castShadow = true; mesh.receiveShadow = true;
+    scene.add(mesh); return mesh;
+  }
+  function inside(pts, x, z) {
+    var c = false;
+    for (var i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      var a = pts[i], b = pts[j];
+      if (((a[1] > z) !== (b[1] > z)) && (x < (b[0] - a[0]) * (z - a[1]) / (b[1] - a[1]) + a[0])) c = !c;
+    }
+    return c;
+  }
+  // Windows on both storeys of every wall longer than 9 ft, facing outward.
+  function addWindows(pts, h) {
+    var sgn = 0; for (var i = 0; i < pts.length; i++) { var p = pts[i], q = pts[(i + 1) % pts.length]; sgn += p[0] * q[1] - q[0] * p[1]; }
+    for (var k = 0; k < pts.length; k++) {
+      var a = pts[k], b = pts[(k + 1) % pts.length], dx = b[0] - a[0], dz = b[1] - a[1], len = Math.hypot(dx, dz);
+      if (len < 9) continue;
+      var nx = dz / len, nz = -dx / len; if (sgn < 0) { nx = -nx; nz = -nz; }
+      var n = Math.max(1, Math.floor(len / 11));
+      for (var w = 0; w < n; w++) {
+        var t = (w + 0.5) / n, x = a[0] + dx * t + nx * 0.1, z = a[1] + dz * t + nz * 0.1;
+        [6.2, 15.5].forEach(function (y) {
+          var g = new THREE.Group();
+          box(g, 4.4, 5.0, 0.3, C.trim, 0, 0, 0, true);
+          box(g, 3.7, 4.3, 0.4, mat(C.glass, { roughness: 0.25, metalness: 0.2 }), 0, 0, 0.05, true);
+          g.position.set(x, y, z); g.rotation.y = Math.atan2(nx, nz); scene.add(g);
+        });
+      }
+    }
+  }
+  function flatPoly(pts, color, y) {
+    var s = new THREE.Shape();
+    pts.forEach(function (p, i) { if (i === 0) s.moveTo(p[0], -p[1]); else s.lineTo(p[0], -p[1]); });
+    var mesh = new THREE.Mesh(new THREE.ShapeGeometry(s), mat(color));
+    mesh.rotation.x = -Math.PI / 2; mesh.position.y = y || 0.05; mesh.receiveShadow = true; scene.add(mesh); return mesh;
+  }
+  function ribbon(pts, width, color, y) {
+    var m = mat(color);
+    for (var i = 0; i < pts.length - 1; i++) {
+      var a = pts[i], b = pts[i + 1], dx = b[0] - a[0], dz = b[1] - a[1], len = Math.hypot(dx, dz);
+      var seg = new THREE.Mesh(new THREE.PlaneGeometry(len, width), m);
+      seg.rotation.x = -Math.PI / 2; seg.rotation.z = -Math.atan2(dz, dx);
+      seg.position.set((a[0] + b[0]) / 2, y, (a[1] + b[1]) / 2); seg.receiveShadow = true; scene.add(seg);
+    }
+    pts.forEach(function (p) {
+      var c = new THREE.Mesh(new THREE.CircleGeometry(width / 2, 20), m);
+      c.rotation.x = -Math.PI / 2; c.position.set(p[0], y, p[1]); c.receiveShadow = true; scene.add(c);
     });
-  })();
-
-  // ---------- 24 Cottage Ln ----------
-  var home = cottage({ siding: C.siding, roof: C.roof, door: C.door });
-  scene.add(home);
-  // address plaque
-  (function () {
-    var cv = document.createElement('canvas'); cv.width = 128; cv.height = 64;
-    var g = cv.getContext('2d'); g.fillStyle = '#f3f2ee'; g.fillRect(0, 0, 128, 64);
-    g.fillStyle = '#333'; g.font = 'bold 44px Arial'; g.textAlign = 'center'; g.fillText('24', 64, 48);
-    var m = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.8), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cv) }));
-    m.position.set(13.2, 8.8, 4.22); scene.add(m);
-  })();
-  // detached two-car garage at the rear, opening to the alley
-  (function () {
-    var gw = 22, gd = 18, gx = -3, gz = -39;
-    var wallM = sidingMat(0x939ca6, 9);
-    box(scene, gw, 9.5, gd, wallM, gx, 4.75, gz);
-    var r = gable(gd, gw, 9.5, 4.5, C.roof, wallM, 1.1); r.rotation.y = Math.PI / 2; r.position.set(gx, 0, gz); scene.add(r);
-    [-5.2, 5.2].forEach(function (dx) {
-      box(scene, 8.6, 7.4, 0.3, C.trim, gx + dx, 3.9, gz - gd / 2 - 0.05, true);
-      for (var i = 0; i < 4; i++) box(scene, 8, 0.12, 0.4, 0xd8d6d0, gx + dx, 1.2 + i * 1.8, gz - gd / 2 - 0.1, true);
+  }
+  function offsetLine(pts, d) {
+    return pts.map(function (p, i) {
+      var a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
+      var dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz) || 1;
+      return [p[0] - dz / l * d, p[1] + dx / l * d];
     });
-    flat(gw, 8, C.concrete, gx, -52, 0.06);
-  })();
-  // side courtyard with a wood pergola and vines (between wing and garage)
+  }
+  function label(text, x, y, z, scale) {
+    var cv = document.createElement('canvas'); cv.width = 512; cv.height = 96;
+    var g = cv.getContext('2d'); g.font = 'bold 50px Arial'; g.textAlign = 'center'; g.lineWidth = 10;
+    g.strokeStyle = 'rgba(255,255,255,0.9)'; g.strokeText(text, 256, 64); g.fillStyle = '#28303f'; g.fillText(text, 256, 64);
+    var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), depthWrite: false }));
+    sp.scale.set(scale * 5.33, scale, 1); sp.position.set(x, y, z); scene.add(sp); return sp;
+  }
+  function tree(x, z, s, color) {
+    cyl(scene, 0.5 * s, 0.7 * s, 8 * s, 0x6b4f36, x, 4 * s, z, 8);
+    var crown = new THREE.Mesh(new THREE.SphereGeometry(5.5 * s, 14, 10), mat(color, { roughness: 1 }));
+    crown.position.set(x, 11 * s, z); crown.scale.y = 1.15; crown.castShadow = true; scene.add(crown);
+    var c2 = crown.clone(); c2.scale.set(0.7, 0.8, 0.7); c2.position.set(x + 2 * s, 14 * s, z - 1.5 * s); scene.add(c2);
+  }
   function pergola(x0, z0, w, d, h) {
     var g = new THREE.Group();
     [[0, 0], [w, 0], [0, d], [w, d]].forEach(function (p) { box(g, 0.8, h, 0.8, C.wood, x0 + p[0], h / 2, z0 + p[1]); });
     [0, d].forEach(function (dz) { box(g, w + 2, 0.9, 0.7, C.wood, x0 + w / 2, h, z0 + dz); });
     for (var i = 0; i <= w; i += 1.6) box(g, 0.35, 0.5, d + 2, C.wood, x0 + i, h + 0.6, z0 + d / 2);
-    for (var j = 0; j < 9; j++) {
-      var v = box(g, 2.6 + (j % 3), 0.5, 2 + ((j * 7) % 3), mat(C.vine, { roughness: 1 }), x0 + 1 + ((j * 37) % (w - 1)), h + 1.05, z0 + 1 + ((j * 53) % (d - 1)), true);
-      v.castShadow = true;
-    }
-    scene.add(g);
-    return g;
+    for (var j = 0; j < 9; j++) box(g, 2.6 + (j % 3), 0.5, 2 + ((j * 7) % 3), mat(C.vine, { roughness: 1 }), x0 + 1 + ((j * 37) % Math.max(2, w - 1)), h + 1.05, z0 + 1 + ((j * 53) % Math.max(2, d - 1)));
+    scene.add(g); return g;
   }
-  pergola(7, -29, 8, 8, 8.5);
-  flat(9, 10, 0xb9b2a5, 11, -25, 0.06);
 
-  // ---------- neighbours ----------
-  var neighbourColors = [0xb7a88d, 0x9aa48c, 0x8e8a83, 0xa9b1b8, 0xc4b59a, 0x7f8f94];
-  [[-34, false, 0], [34, true, 1], [-68, true, 2], [68, false, 3]].forEach(function (n) {
-    var h = cottage({ siding: neighbourColors[n[2]], roof: 0x4a4d52, door: [0x3e5a74, 0x5a6b45, 0x7a3b2e, 0x2f3f55][n[2]], mirror: n[1] });
-    h.position.x = n[0]; scene.add(h);
-  });
-  // homes across the common green, facing ours
-  [[-34, 4], [0, 5], [34, 2]].forEach(function (n, i) {
-    var h = cottage({ siding: neighbourColors[n[1]], roof: 0x4a4d52, door: [0x2f3f55, 0x7a3b2e, 0x5a6b45][i], mirror: i === 1 });
-    h.rotation.y = Math.PI; h.position.set(n[0], 0, 82); scene.add(h);
-  });
+  // ---------- ground ----------
+  var ground = new THREE.Mesh(new THREE.PlaneGeometry(2400, 2400), mat(C.grass));
+  ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+  (SITE.areas || []).forEach(function (a) { if (a.type === 'parking') flatPoly(a.pts, C.asphalt, 0.07); });
 
-  // ---------- common green: pergola, fire pit, gardens ----------
-  flat(110, 40, 0x7da251, 0, 40, 0.02);
-  // decomposed-granite loop path
-  (function () {
-    var ring = new THREE.Mesh(new THREE.RingGeometry(9, 12, 48), mat(C.dg));
-    ring.rotation.x = -Math.PI / 2; ring.position.set(-26, 0.05, 40); ring.receiveShadow = true; scene.add(ring);
-    for (var i = 0; i < 22; i++) {
-      var a = i / 22 * Math.PI * 2, r = 5 + (i % 3);
-      var s = new THREE.Mesh(new THREE.SphereGeometry(1 + (i % 2) * 0.5, 10, 8), mat([0x6e9a45, 0xa2b85a, 0xc98f4a, 0x7c8f50][i % 4]));
-      s.position.set(-26 + Math.cos(a) * r, 0.8, 40 + Math.sin(a) * r); s.castShadow = true; scene.add(s);
+  // ---------- streets and paths (real alignments) ----------
+  var ROAD = { tertiary: [46, C.asphalt], residential: [30, C.asphalt], service: [20, C.asphalt], footway: [6, C.concrete], path: [6, C.dg], cycleway: [9, 0x9a9890] };
+  var parkway = null, cottageLn = [];
+  SITE.roads.forEach(function (r) {
+    var spec = ROAD[r.type] || [12, C.asphalt];
+    ribbon(r.pts, spec[0], spec[1], r.type === 'tertiary' ? 0.06 : (spec[0] < 12 ? 0.1 : 0.08));
+    if (r.type === 'tertiary') parkway = r;
+    if (r.name === 'Cottage Lane') cottageLn.push(r);
+  });
+  if (parkway) {
+    // centre line, sidewalks and street trees along Hamilton Parkway
+    ribbon(parkway.pts, 0.6, 0xe8d36a, 0.075);
+    [-1, 1].forEach(function (side) {
+      var sw = offsetLine(parkway.pts, side * 27);
+      ribbon(sw, 6, C.concrete, 0.09);
+      var tl = offsetLine(parkway.pts, side * 33), acc = 0;
+      for (var i = 0; i < tl.length - 1; i++) {
+        var a = tl[i], b = tl[i + 1], len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        for (var t = (34 - acc); t < len; t += 34) {
+          var x = a[0] + (b[0] - a[0]) * t / len, z = a[1] + (b[1] - a[1]) * t / len;
+          if (Math.abs(x) < 340 && Math.abs(z) < 340) tree(x, z, 0.85 + ((i * 13 + Math.round(t)) % 5) / 12, [0x7da23c, 0x8db33a, 0x6e9e3c][(i + Math.round(t)) % 3]);
+        }
+        acc = (acc + len) % 34;
+      }
+    });
+    var mid = parkway.pts[Math.floor(parkway.pts.length / 2)];
+    label('Hamilton Pkwy', mid[0], 3, mid[1], 7);
+  }
+  cottageLn.forEach(function (r, i) { if (i === 0) { var m = r.pts[Math.floor(r.pts.length / 2)]; label('Cottage Ln', m[0], 3, m[1], 6); } });
+  SITE.roads.forEach(function (r) { if (r.name === 'Marblehead Lane' && r.pts.length > 3) { var m = r.pts[Math.floor(r.pts.length / 2)]; label('Marblehead Ln', m[0], 3, m[1], 6); } });
+
+  // ---------- buildings ----------
+  var homeB = null, communityCentre = [0, 0], nC = 0, communityBs = [];
+  SITE.buildings.forEach(function (b) {
+    if (b.kind === 'home') homeB = b;
+    if (b.kind === 'community' || b.kind === 'home') { var c = centroid(b.pts); communityCentre[0] += c[0]; communityCentre[1] += c[1]; nC++; communityBs.push(b); }
+  });
+  communityCentre = [communityCentre[0] / nC, communityCentre[1] / nC];
+
+  var colorIdx = 0;
+  SITE.buildings.forEach(function (b) {
+    if (b.kind === 'home') return;
+    var o = obb(b.pts), area = polyArea(b.pts), fill = area / (o.L * o.W);
+    if (b.kind === 'community') {
+      var col = COTTAGE_COLORS[colorIdx++ % COTTAGE_COLORS.length];
+      if (fill > 0.74 && o.L < 64 && o.W < 40 && o.W > 18) {
+        // A home: fit the craftsman cottage to the footprint, front facing the commons.
+        var fx = o.ux, fz = o.uz;
+        if ((communityCentre[0] - o.cx) * fx + (communityCentre[1] - o.cz) * fz < 0) { fx = -fx; fz = -fz; }
+        var md = Math.max(22, Math.min(46, o.L - 9));
+        var g = cottage({ siding: col.siding, door: col.door, md: md });
+        var lcz = (6 - md + 13) / 2, alpha = Math.atan2(fx, fz);
+        g.rotation.y = alpha;
+        g.scale.x = Math.max(0.75, Math.min(1.35, o.W / 28)) * (colorIdx % 2 ? -1 : 1);
+        g.position.set(o.cx - Math.sin(alpha) * lcz, 0, o.cz - Math.cos(alpha) * lcz);
+        scene.add(g);
+      } else {
+        // Larger / irregular community buildings (homes paired with garages along
+        // Cottage Lane, community room): real outline, two storeys, windows on every
+        // long wall, and a roof broken into sections along the building's length.
+        var wm = sidingMat(col.siding, 19);
+        extrude(b.pts, 20.2, wm);
+        addWindows(b.pts, 20.2);
+        var nSec = Math.max(1, Math.round(o.L / 26)), secL = o.L / nSec, rot = Math.atan2(o.ux, o.uz);
+        for (var k = 0; k < nSec; k++) {
+          var off = -o.L / 2 + secL * (k + 0.5);
+          var sx = o.cx + o.ux * off, sz = o.cz + o.uz * off;
+          // only roof the parts of the rectangle the real outline actually covers
+          if (!inside(b.pts, sx, sz)) continue;
+          var hip = new THREE.ConeGeometry(Math.SQRT1_2, 1, 4); hip.rotateY(Math.PI / 4);
+          var rf = new THREE.Mesh(hip, mat(C.roof));
+          rf.scale.set(o.W * 1.04, Math.min(9, o.W * 0.32), secL * 1.04);
+          rf.rotation.y = rot; rf.position.set(sx, 20.2 + rf.scale.y / 2, sz);
+          rf.castShadow = true; rf.receiveShadow = true; scene.add(rf);
+        }
+      }
+    } else {
+      // Surrounding neighbourhood: stucco walls and clay-tile hip roofs, as seen from above.
+      var small = area < 450, h = small ? 9 : (area > 1300 ? 19 : 10);
+      extrude(b.pts, h, mat(small ? 0xd8cdb8 : [0xe2d3b8, 0xd9c7a6, 0xe8dcc6, 0xcfbf9f][Math.abs(parseInt(b.id, 10)) % 4]));
+      var cone = new THREE.ConeGeometry(Math.SQRT1_2, 1, 4); cone.rotateY(Math.PI / 4);
+      var roof = new THREE.Mesh(cone, mat(small ? 0x8a8a86 : C.tile));
+      roof.scale.set(o.W * 1.06, Math.max(4, o.W * 0.3), o.L * 1.06);
+      roof.rotation.y = Math.atan2(o.ux, o.uz);
+      roof.position.set(o.cx, h + roof.scale.y / 2, o.cz);
+      roof.castShadow = true; roof.receiveShadow = true; scene.add(roof);
     }
-  })();
-  // patio + vine pergola + tables
-  flat(26, 18, 0xd2ccbf, 30, 38, 0.06);
-  pergola(22, 32, 16, 12, 9);
-  [[28, 36], [34, 36], [28, 42], [34, 42]].forEach(function (p) {
-    cyl(scene, 1.6, 1.6, 0.25, C.wood, p[0], 2.6, p[1]);
-    cyl(scene, 0.2, 0.2, 2.5, 0x444444, p[0], 1.25, p[1], 6);
   });
+
+  // ---------- 24 Cottage Ln, fitted to its mapped footprint ----------
+  // Map outline: two-storey block + porch on the west, one-storey wing on the east
+  // set back ~8 ft, front facing south onto the commons, rotated ~3 deg.
+  var home = cottage({ siding: C.siding, door: C.door, md: 43, wd: 41 });
+  home.rotation.y = -0.053;
+  home.position.set(0.1, 0, 12.3);
+  scene.add(home);
+  home.updateMatrixWorld(true);
+  (function () {
+    var cv = document.createElement('canvas'); cv.width = 128; cv.height = 64;
+    var g = cv.getContext('2d'); g.fillStyle = '#f3f2ee'; g.fillRect(0, 0, 128, 64);
+    g.fillStyle = '#333'; g.font = 'bold 44px Arial'; g.textAlign = 'center'; g.fillText('24', 64, 48);
+    var m = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.8), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cv) }));
+    m.position.set(13.2, 8.8, 4.22); home.add(m);
+  })();
+  // gold outline of the mapped footprint
+  (function () {
+    var pts = homeB.pts.concat([homeB.pts[0]]).map(function (p) { return new THREE.Vector3(p[0], 0.3, p[1]); });
+    scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0xd4a74a })));
+  })();
+  // side courtyard with a vine pergola on the east side (photo 30)
+  pergola(15.5, -6, 5, 10, 8.5);
+
+  // ---------- rear fence along Hamilton Parkway ----------
+  (function () {
+    var north = communityBs.filter(function (b) { var c = centroid(b.pts); return c[1] < 20 && c[0] < 160; });
+    var zmin = Math.min.apply(null, north.map(function (b) { return Math.min.apply(null, b.pts.map(function (p) { return p[1]; })); }));
+    var xmin = Math.min.apply(null, north.map(function (b) { return Math.min.apply(null, b.pts.map(function (p) { return p[0]; })); }));
+    var xmax = Math.max.apply(null, north.map(function (b) { return Math.max.apply(null, b.pts.map(function (p) { return p[0]; })); }));
+    var fz = zmin - 7;
+    for (var x = xmin - 6; x < xmax + 6; x += 8) box(scene, 8.2, 6, 0.4, 0x9b7b5a, x + 4, 3, fz);
+    flatPoly([[xmin - 8, fz - 1], [xmax + 8, fz - 1], [xmax + 8, zmin], [xmin - 8, zmin]], 0x8db05f, 0.04);
+  })();
+
+  // ---------- the commons: garden, paths, gathering areas ----------
+  // Positions follow the open courtyard between the homes in aerial imagery (approximate).
+  var CX = communityCentre[0], CZ = communityCentre[1];
+  (function () {
+    // shared lawn
+    var lawn = new THREE.Mesh(new THREE.CircleGeometry(60, 40), mat(C.lawn));
+    lawn.rotation.x = -Math.PI / 2; lawn.position.set(CX, 0.03, CZ); lawn.scale.set(1, 1.15, 1); lawn.receiveShadow = true; scene.add(lawn);
+    // walkway along the front porches of the north row, and up the east row
+    ribbon([[-62, 31], [CX + 18, 33]], 5, C.concrete, 0.11);
+    ribbon([[CX + 18, 33], [CX + 22, CZ + 120]], 5, C.concrete, 0.11);
+    // decomposed-granite loop and plaza
+    var ring = new THREE.Mesh(new THREE.RingGeometry(26, 31, 56), mat(C.dg));
+    ring.rotation.x = -Math.PI / 2; ring.position.set(CX - 8, 0.1, CZ); ring.receiveShadow = true; scene.add(ring);
+    var plaza = new THREE.Mesh(new THREE.CircleGeometry(13, 32), mat(0xd2ccbf));
+    plaza.rotation.x = -Math.PI / 2; plaza.position.set(CX - 8, 0.12, CZ - 22); plaza.receiveShadow = true; scene.add(plaza);
+    ribbon([[CX - 8, CZ - 9], [CX - 8, CZ - 26], [-2, 31]], 4.5, C.dg, 0.1);
+    ribbon([[CX - 34, CZ + 8], [CX - 70, CZ + 70]], 4.5, C.dg, 0.1);
+  })();
+  // gazebo / vine pergola with outdoor kitchen
+  pergola(CX - 16, CZ - 30, 16, 12, 9);
+  box(scene, 10, 3.2, 2.6, 0x7a7065, CX - 8, 1.6, CZ - 18.5);
+  box(scene, 10.4, 0.3, 3, 0xcfc8bc, CX - 8, 3.35, CZ - 18.5);
   // fire pit with chairs
-  flat(16, 16, 0xd2ccbf, 52, 36, 0.06);
-  cyl(scene, 2.4, 2.6, 1.4, 0x6f6a64, 52, 0.7, 36, 20);
-  cyl(scene, 1.7, 1.7, 0.3, 0x2c2a28, 52, 1.42, 36, 20);
+  cyl(scene, 2.4, 2.6, 1.4, 0x6f6a64, CX + 12, 0.7, CZ + 6, 20);
+  cyl(scene, 1.7, 1.7, 0.3, 0x2c2a28, CX + 12, 1.42, CZ + 6, 20);
   for (var i = 0; i < 6; i++) {
     var a = i / 6 * Math.PI * 2, ch = new THREE.Group();
     box(ch, 2.2, 0.4, 2.2, C.wood, 0, 1.4, 0); box(ch, 2.2, 2.4, 0.3, C.wood, 0, 2.5, -1.1);
-    ch.position.set(52 + Math.cos(a) * 6, 0, 36 + Math.sin(a) * 6);
-    ch.lookAt(52, 0, 36); scene.add(ch);
+    ch.position.set(CX + 12 + Math.cos(a) * 6, 0, CZ + 6 + Math.sin(a) * 6); ch.lookAt(CX + 12, 0, CZ + 6); scene.add(ch);
+  }
+  // community garden beds and planting
+  for (var gi = 0; gi < 6; gi++) box(scene, 4, 1.6, 9, 0x8a6a4a, CX - 30 + (gi % 3) * 7, 0.8, CZ + 20 + Math.floor(gi / 3) * 12);
+  for (var si = 0; si < 26; si++) {
+    var aa = si / 26 * Math.PI * 2, rr = 20 + (si % 4) * 2.5;
+    var sh = new THREE.Mesh(new THREE.SphereGeometry(1.1 + (si % 3) * 0.4, 10, 8), mat([0x6e9a45, 0xa2b85a, 0xc98f4a, 0x7c8f50][si % 4]));
+    sh.position.set(CX - 8 + Math.cos(aa) * rr, 0.9, CZ + Math.sin(aa) * rr); sh.castShadow = true; scene.add(sh);
+  }
+  [[CX + 30, CZ - 30], [CX - 40, CZ - 20], [CX + 25, CZ + 35], [CX - 45, CZ + 45], [-40, 40], [40, 40]].forEach(function (p, i) { tree(p[0], p[1], 0.8 + (i % 3) * 0.12, [0x8db33a, 0xc9b83a, 0x6e9e3c][i % 3]); });
+  // front-yard planting at No. 24
+  for (var j = 0; j < 12; j++) {
+    var shb = new THREE.Mesh(new THREE.SphereGeometry(0.9 + (j % 3) * 0.3, 10, 8), mat([0x7a8f5a, 0x9aa66a, 0x8b5a4a, 0x6f8c4a][j % 4]));
+    var px = -14 + (j * 2.3) % 27; if (px > 3 && px < 8) px += 6;
+    shb.position.set(px, 0.7, 26.2 + (j % 2) * 1.1); shb.castShadow = true; scene.add(shb);
   }
 
-  // ---------- Hamilton Cottages entry sign ----------
-  (function () {
-    var cv = document.createElement('canvas'); cv.width = 512; cv.height = 96;
-    var g = cv.getContext('2d'); g.fillStyle = '#e9e4da'; g.fillRect(0, 0, 512, 96);
-    g.fillStyle = '#4a4a4a'; g.font = 'bold 46px Georgia, serif'; g.textAlign = 'center'; g.fillText('HAMILTON COTTAGES', 256, 64);
-    var wallM = mat(0xe3ddd1);
-    box(scene, 28, 5, 1.6, wallM, 64, 2.5, 72);
-    var face = new THREE.Mesh(new THREE.PlaneGeometry(22, 4.1), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cv) }));
-    face.rotation.y = Math.PI / 2; face.position.set(64.2, 2.6, 72);
-    face.rotation.y = 0; face.position.set(64, 2.6, 72.85); scene.add(face);
-  })();
-
-  // ---------- trees ----------
-  var leaf = [0x8db33a, 0xc9b83a, 0x6e9e3c, 0xb3a43a];
-  [[-28, 23], [28, 23], [-48, 26], [48, 22], [-12, 52], [44, 54], [-52, 48], [62, 50], [-24, -30], [24, -32], [-60, -20], [60, -10],
-   [70, -40], [70, 0], [70, 40], [-70, 10], [90, 60], [96, -20], [-40, 70], [12, 58]].forEach(function (p, i) {
-    var s = 0.8 + ((i * 37) % 7) / 10;
-    cyl(scene, 0.5 * s, 0.7 * s, 8 * s, 0x6b4f36, p[0], 4 * s, p[1], 8);
-    var crown = new THREE.Mesh(new THREE.SphereGeometry(5.5 * s, 14, 10), mat(leaf[i % 4], { roughness: 1 }));
-    crown.position.set(p[0], 11 * s, p[1]); crown.scale.y = 1.15; crown.castShadow = true; scene.add(crown);
-    var c2 = crown.clone(); c2.scale.set(0.7, 0.8, 0.7); c2.position.set(p[0] + 2 * s, 14 * s, p[1] - 1.5 * s); scene.add(c2);
-  });
-  // front-yard planting like the photos
-  for (var j = 0; j < 14; j++) {
-    var sh = new THREE.Mesh(new THREE.SphereGeometry(0.9 + (j % 3) * 0.3, 10, 8), mat([0x7a8f5a, 0x9aa66a, 0x8b5a4a, 0x6f8c4a][j % 4]));
-    sh.position.set(-15 + (j * 2.1) % 28 + (j > 6 ? 1 : 0), 0.7, 13.3 + (j % 2) * 1.2);
-    if (sh.position.x > -0.2 && sh.position.x < 3.6) sh.position.x += 4.5;
-    sh.castShadow = true; scene.add(sh);
-  }
-
-  // ---------- hotspots ----------
+  // ---------- markers ----------
   var IMG = function (n) { return 'images/' + n + '.jpg'; };
+  function H(x, y, z) { return home.localToWorld(new THREE.Vector3(x, y, z)); }
+  function bc(id) { var b = SITE.buildings.filter(function (q) { return q.id === id && q.kind === 'community'; })[0]; return b ? centroid(b.pts) : [CX, CZ]; }
+  var garageC = bc('571'), roomC = bc('568');
+  var entry = (function () {
+    var best = null;
+    cottageLn.forEach(function (r) { r.pts.forEach(function (p) { if (!best || p[1] < best[1]) best = p; }); });
+    return best || [-80, -20];
+  })();
   var SPOTS = [
-    { home: true, name: '24 Cottage Ln', pos: [-4, 33, -10], photos: ['01-exterior-front', '02-exterior-angle', '03-front-porch'],
-      text: 'A 2020 Ryder Homes craftsman in Hamilton Cottages: 3 bed, 2.5 bath, 1,768 sq ft on a 2,008 sq ft lot. $999,000.' },
-    { near: true, name: 'Front porch', pos: [-12, 12.2, 12.6], photos: ['03-front-porch', '01-exterior-front', '02-exterior-angle'],
-      text: 'Covered front porch with a horizontal-board railing and the red front door.' },
-    { near: true, name: 'Living room', pos: [-10, 9, 1], photos: ['04-living-room', '05-living-room-stairs', '07-great-room', '06-living-to-kitchen'], approx: true,
+    { home: true, name: '24 Cottage Ln', v: H(0, 36, -14), photos: ['01-exterior-front', '02-exterior-angle', '03-front-porch'],
+      text: 'A 2020 Ryder Homes craftsman in the 16-home Hamilton Cottages pocket neighborhood: 3 bed, 2.5 bath, 1,768 sq ft on a 2,008 sq ft lot. Its front porch faces the shared garden; the back faces Hamilton Parkway. $999,000.' },
+    { near: true, name: 'Front porch', v: H(-12, 12.2, 12.6), photos: ['03-front-porch', '01-exterior-front', '02-exterior-angle'],
+      text: 'Covered front porch with a horizontal-board railing, opening onto the community walkway and commons.' },
+    { near: true, name: 'Living room', v: H(-10, 8, 0), photos: ['04-living-room', '05-living-room-stairs', '07-great-room', '06-living-to-kitchen'], approx: true,
       text: 'Bright living area with wood-look floors, big windows and the stairs up to the second floor.' },
-    { near: true, name: 'Kitchen', pos: [-6, 9, -15], photos: ['08-kitchen', '10-kitchen-island', '09-kitchen-sink', '11-kitchen-to-living'], approx: true,
+    { near: true, name: 'Kitchen', v: H(-6, 8, -18), photos: ['08-kitchen', '10-kitchen-island', '09-kitchen-sink', '11-kitchen-to-living'], approx: true,
       text: 'White shaker cabinetry, subway tile, stainless appliances and an island.' },
-    { near: true, name: 'Dining nook', pos: [3, 9, -4], photos: ['12-dining-nook', '13-dining-living'], approx: true,
+    { near: true, name: 'Dining nook', v: H(2, 8, -6), photos: ['12-dining-nook', '13-dining-living'], approx: true,
       text: 'Dining nook open to the living room and kitchen.' },
-    { near: true, name: 'Primary suite', pos: [10.5, 13, -10], photos: ['16-primary-bedroom', '17-primary-bedroom-2', '18-primary-bedroom-3', '24-walk-in-closet', '27-primary-bath'], approx: true,
-      text: 'Main-level primary suite with a walk-in closet and a bath with a double vanity and walk-in shower.' },
-    { near: true, name: 'Upstairs bedrooms', pos: [-8, 20.5, -12], photos: ['19-bedroom-2', '20-bedroom-2-closet', '21-bedroom-2-alt', '22-bedroom-3', '23-bedroom-3-alt', '14-den', '15-den-2'], approx: true,
+    { near: true, name: 'Primary suite', v: H(10, 13, -14), photos: ['16-primary-bedroom', '17-primary-bedroom-2', '18-primary-bedroom-3', '24-walk-in-closet', '27-primary-bath'], approx: true,
+      text: 'Main-level primary suite with a walk-in closet and a bath with a double vanity and walk-in shower. Every Hamilton Cottages plan puts the primary suite, kitchen, living room and laundry on the first floor.' },
+    { near: true, name: 'Upstairs bedrooms', v: H(-8, 20.5, -16), photos: ['19-bedroom-2', '20-bedroom-2-closet', '21-bedroom-2-alt', '22-bedroom-3', '23-bedroom-3-alt', '14-den', '15-den-2'], approx: true,
       text: 'Two upstairs bedrooms with vaulted ceilings, plus a flexible den space.' },
-    { near: true, name: 'Bathrooms', pos: [0, 20.5, -22], photos: ['28-hall-bath', '25-powder-room', '26-half-bath'], approx: true,
+    { near: true, name: 'Bathrooms', v: H(0, 20.5, -28), photos: ['28-hall-bath', '25-powder-room', '26-half-bath'], approx: true,
       text: 'Upstairs full bath and a main-level powder room.' },
-    { near: true, name: 'Laundry', pos: [4, 9, -24], photos: ['29-laundry'], approx: true,
+    { near: true, name: 'Laundry', v: H(5, 8, -30), photos: ['29-laundry'], approx: true,
       text: 'Inside laundry room; washer and dryer are included.' },
-    { near: true, name: 'Side courtyard', pos: [11, 11.5, -25], photos: ['30-side-courtyard'], approx: true,
-      text: 'Private side courtyard with a vine-covered pergola.' },
-    { near: true, name: 'Detached garage', pos: [-3, 16, -39], photos: [], approx: true,
-      text: 'Detached two-car garage, per the listing. There are no listing photos of the garage.' },
-    { name: 'Community pergola', pos: [30, 13, 38], photos: ['31-community-pergola', '32-community-firepit'],
-      text: 'Shared courtyard with a vine-covered pergola, outdoor dining and a fire pit.' },
-    { name: 'Fire pit', pos: [52, 7, 36], photos: ['32-community-firepit', '31-community-pergola'],
+    { near: true, name: 'Side courtyard', v: new THREE.Vector3(18, 11, -1), photos: ['30-side-courtyard'], approx: true,
+      text: 'Private side courtyard with a vine-covered pergola. Hamilton Cottages homes have private, fenced yards.' },
+    { name: 'Garages & guest parking', v: new THREE.Vector3(garageC[0], 26, garageC[1]), photos: [], approx: true,
+      text: 'Garages for the homes and extra guest parking sit along Cottage Lane, on the west side of the community. The listing shows a detached 2-car garage for No. 24; which garage building it is isn\'t confirmed here.' },
+    { name: 'Community courtyard', v: new THREE.Vector3(CX - 8, 14, CZ - 22), photos: ['31-community-pergola', '32-community-firepit'], approx: true,
+      text: 'The homes cluster around a central garden with gazebos, outdoor kitchens/BBQs, fire pits and seating areas.' },
+    { name: 'Fire pit', v: new THREE.Vector3(CX + 12, 7, CZ + 6), photos: ['32-community-firepit', '31-community-pergola'], approx: true,
       text: 'Community fire pit with Adirondack-style seating.' },
-    { name: 'Community gardens', pos: [-26, 6, 40], photos: ['33-community-green'],
-      text: 'Landscaped common gardens with a decomposed-granite loop path.' },
-    { name: 'Hamilton Cottages entry', pos: [64, 9, 72], photos: ['34-hamilton-cottages-entry'],
-      text: 'Hamilton Cottages is a 62+ community. HOA $495/mo covers common areas, the clubhouse and trash.' }
+    { name: 'Community garden', v: new THREE.Vector3(CX - 23, 6, CZ + 26), photos: ['33-community-green'], approx: true,
+      text: 'Landscaped commons with a community garden and decomposed-granite paths.' },
+    { name: 'Community room', v: new THREE.Vector3(roomC[0], 28, roomC[1]), photos: [], approx: true,
+      text: 'Residents can use the Community Center, with a kitchen, flat-screen TV and comfortable seating.' },
+    { name: 'Entrance from Hamilton Pkwy', v: new THREE.Vector3(entry[0], 9, entry[1]), photos: ['34-hamilton-cottages-entry'],
+      text: 'Cottage Lane enters the community from Hamilton Parkway. Hamilton Cottages is a 62+ community (at least one owner on title 62 or older). HOA $495/mo covers common areas, the clubhouse and trash.' }
   ];
 
   var pinsHost = document.getElementById('pins');
@@ -465,7 +627,7 @@
     el.title = s.name;
     el.addEventListener('click', function (ev) { ev.stopPropagation(); openSpot(i); });
     pinsHost.appendChild(el);
-    s.el = el; s.v = new THREE.Vector3(s.pos[0], s.pos[1], s.pos[2]);
+    s.el = el;
   });
   var tmp = new THREE.Vector3();
   function placePins() {
@@ -473,14 +635,16 @@
     SPOTS.forEach(function (s) {
       tmp.copy(s.v).project(camera);
       var dist = camera.position.distanceTo(s.v);
-      // Room-level markers only appear once you're close enough to tell them apart.
-      var limit = s.home ? 1e9 : (s.near ? 105 : 230);
-      var off = tmp.z > 1 || tmp.x < -1.1 || tmp.x > 1.1 || tmp.y < -1.1 || tmp.y > 1.1 || dist > limit;
+      var limit = s.home ? 1e9 : (s.near ? 120 : 380);
+      // From ground level, far-off community markers would float over nearer buildings,
+      // so only show them from the air or when they're close by.
+      var lowAndFar = !s.home && !s.near && camera.position.y < 40 && dist > 110;
+      var off = tmp.z > 1 || tmp.x < -1.1 || tmp.x > 1.1 || tmp.y < -1.1 || tmp.y > 1.1 || dist > limit || lowAndFar;
       s.el.classList.toggle('hidden', off);
       if (!off) {
         s.el.style.left = ((tmp.x + 1) / 2 * w) + 'px';
         s.el.style.top = ((1 - tmp.y) / 2 * h) + 'px';
-        s.el.style.zIndex = String(1000 - Math.round(dist));
+        s.el.style.zIndex = String(2000 - Math.round(dist));
       }
     });
   }
@@ -492,7 +656,7 @@
     var s = SPOTS[cur], has = s.photos.length > 0;
     document.getElementById('m-title').textContent = s.name;
     document.getElementById('m-text').textContent = s.text;
-    document.getElementById('m-approx').textContent = s.approx ? 'Marker location is approximate; no floor plan was available.' : '';
+    document.getElementById('m-approx').textContent = s.approx ? 'Marker location is approximate.' : '';
     document.querySelector('.card .ph').style.display = has ? '' : 'none';
     if (has) {
       mImg.src = IMG(s.photos[idx]); mImg.alt = s.name + ' photo ' + (idx + 1);
@@ -517,23 +681,24 @@
 
   // ---------- camera views ----------
   var VIEWS = {
-    bird:      { p: [44, 72, 66],   t: [-1, 4, -10] },
-    front:     { p: [6, 16, 58],    t: [-2, 9, 0] },
-    street:    { p: [-16, 5.5, 27], t: [-2, 9, 0] },
-    back:      { p: [-45, 38, -105], t: [0, 6, -26] },
-    community: { p: [10, 48, 100],  t: [20, 3, 38] }
+    bird:      { p: [70, 95, 125],   t: [10, 6, 20] },
+    // A Cottage Lane building sits ~44-68 ft south of No. 24, so the open view
+    // of the porch is from the south-east, across the courtyard.
+    front:     { p: [42, 16, 64],    t: [-1, 10, 8] },
+    street:    { p: [29, 5.5, 50],   t: [-2, 9, 10] },
+    back:      { p: [-22, 38, -98],  t: [0, 8, -8] },   // from above Hamilton Parkway
+    community: { p: [CX - 150, 150, CZ + 210], t: [CX, 4, CZ] }
   };
-  var anim = null;
-  // On tall, narrow screens (phones held upright) pull the camera back so the house still fits.
   function viewPos(v) {
     var p = new THREE.Vector3().fromArray(v.p), t = new THREE.Vector3().fromArray(v.t);
     var a = window.innerWidth / window.innerHeight;
     if (a < 1.1) p.sub(t).multiplyScalar(Math.min(2.2, Math.pow(1.1 / a, 0.85))).add(t);
     return p;
   }
+  var anim = null;
   function goTo(name) {
     var v = VIEWS[name]; if (!v) return;
-    anim = { t0: performance.now(), dur: 1300,
+    anim = { t0: performance.now(), dur: 1400,
       p0: camera.position.clone(), p1: viewPos(v),
       q0: controls.target.clone(), q1: new THREE.Vector3().fromArray(v.t) };
     document.querySelectorAll('#views button[data-v]').forEach(function (b) { b.classList.toggle('on', b.dataset.v === name); });
@@ -544,14 +709,12 @@
   controls.addEventListener('start', function () {
     anim = null;
     document.querySelectorAll('#views button[data-v]').forEach(function (b) { b.classList.remove('on'); });
-    var hint = document.getElementById('hint'); hint.style.opacity = '0';
+    document.getElementById('hint').style.opacity = '0';
   });
-
-  function resize() {
+  window.addEventListener('resize', function () {
     camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
-  }
-  window.addEventListener('resize', resize);
+  });
 
   function ease(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
   function loop(now) {
@@ -566,7 +729,10 @@
     placePins();
     requestAnimationFrame(loop);
   }
-  camera.position.copy(viewPos(VIEWS.bird)); controls.update();
+  controls.target.fromArray(VIEWS.bird.t);
+  camera.position.copy(viewPos(VIEWS.bird));
+  controls.update();
+  window.__scene = { communityCentre: communityCentre, garage: garageC, room: roomC, entry: entry, camera: camera, controls: controls };
   document.getElementById('loading').style.display = 'none';
   setTimeout(function () { document.getElementById('hint').style.opacity = '0'; }, 9000);
   requestAnimationFrame(loop);
