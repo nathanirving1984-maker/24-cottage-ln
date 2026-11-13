@@ -1,5 +1,5 @@
 :root {
-  --teal: #1B4F4C;
+  --teal: #012169; /* Coldwell Banker navy (variable name kept from template) */
   --gold: #B08D57;
   --cream: #F7F5F1;
   --dark: #22282A;
@@ -167,7 +167,7 @@ button[type="submit"]:hover { background: var(--teal); }
 
 /* Footer / compliance */
 footer {
-  background: var(--dark);
+  background: var(--teal);
   color: #cfd3d1;
   padding: 28px 24px;
   font-size: 0.8rem;
@@ -185,7 +185,7 @@ footer .eho { color: var(--gold); margin-top: 6px; display: block; }
 
 /* --- 24 Cottage Ln additions --- */
 .hero.has-photo {
-  background: linear-gradient(rgba(20,28,30,0.45), rgba(20,28,30,0.7)), url("images/01-exterior-front.jpg") center 40% / cover no-repeat;
+  background: linear-gradient(rgba(1,20,60,0.40), rgba(1,20,60,0.68)), url("images/01-exterior-front.jpg") center 40% / cover no-repeat;
   padding: 120px 24px;
 }
 .hero.has-photo h1, .hero.has-photo .price { text-shadow: 0 2px 10px rgba(0,0,0,0.45); }
