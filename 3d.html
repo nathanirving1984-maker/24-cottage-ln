@@ -20,6 +20,9 @@
   .topbar .t2 { color: var(--gold); font-size: 0.74rem; letter-spacing: .3px; }
   .topbar a.back { color: #fff; font-size: .85rem; border: 1px solid rgba(255,255,255,.5); border-radius: 4px; padding: 6px 10px; white-space: nowrap; }
   .topbar a.back:hover { border-color: var(--gold); color: var(--gold); }
+  .topbar .links { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+  .topbar a.ext { color: var(--gold); font-size: .8rem; white-space: nowrap; }
+  .topbar a.ext:hover { text-decoration: underline; }
 
   .views { position: fixed; z-index: 20; top: 70px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; max-width: calc(100% - 24px); }
   .views button { background: rgba(255,255,255,.94); color: var(--navy); border: 1px solid rgba(1,33,105,.25); border-radius: 999px; padding: 7px 13px; font: bold 0.8rem Arial, sans-serif; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,.12); }
@@ -60,6 +63,10 @@
 
   @media (max-width: 640px) {
     .topbar .t2 { display: none; }
+    .topbar { padding: 8px 10px; }
+    .topbar .t1 { font-size: .9rem; }
+    .topbar a.ext { font-size: .7rem; }
+    .topbar a.back { padding: 4px 8px; font-size: .75rem; }
     .views { top: 60px; gap: 4px; }
     .views button { padding: 6px 10px; font-size: .72rem; }
     .pin .lbl { font-size: .66rem; padding: 4px 7px 4px 5px; }
@@ -78,7 +85,11 @@
     <div class="t1">24 Cottage Ln &middot; 3D View</div>
     <div class="t2">Hamilton Cottages, Novato &middot; $999,000 &middot; 3 bed &middot; 2.5 bath &middot; 1,768 sq ft</div>
   </div>
-  <a class="back" href="index.html">&larr; Listing</a>
+  <div class="links">
+    <a class="ext" href="https://www.google.com/maps/@?api=1&amp;map_action=pano&amp;viewpoint=38.059050,-122.524700&amp;heading=150&amp;pitch=0&amp;fov=90" target="_blank" rel="noopener">Street View &#8599;</a>
+    <a class="ext" href="https://www.google.com/maps/@?api=1&amp;map_action=map&amp;center=38.058820,-122.524420&amp;zoom=20&amp;basemap=satellite" target="_blank" rel="noopener">Satellite &#8599;</a>
+    <a class="back" href="index.html">&larr; Listing</a>
+  </div>
 </div>
 
 <div class="views" id="views">
@@ -88,6 +99,8 @@
   <button data-v="back">Back</button>
   <button data-v="community">Community</button>
   <button id="spin">Auto-rotate</button>
+  <button id="tgAerial" class="on" title="Show or hide the aerial photo on the ground">Aerial photo</button>
+  <button id="tgLots" class="on" title="Show or hide county lot lines">Lot lines</button>
 </div>
 
 <div id="scene"></div>
@@ -100,7 +113,7 @@
   <span class="long">Building positions and streets from map data; house details from listing photos. Interior room locations and some community features are approximate.</span>
   <span><b>Nathan Irving, REALTOR&reg;</b> &middot; DRE# 02414117 &middot; Coldwell Banker Realty</span>
   <span>Listed by Suzie Fitzpatrick, Coldwell Banker Realty &middot; MLS# 326088180 &middot; Equal Housing Opportunity</span>
-  <span>Map data &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a></span>
+  <span>Map data &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> &middot; Aerial: USDA NAIP via USGS The National Map &middot; Parcels: Marin County CDA/Assessor (not survey accurate) &middot; Elevation: USGS 3DEP &middot; Site plan: City of Novato public records</span>
 </div>
 
 <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="m-title">
@@ -426,6 +439,18 @@
   // ---------- ground ----------
   var ground = new THREE.Mesh(new THREE.PlaneGeometry(2400, 2400), mat(C.grass));
   ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+  // Public-domain aerial photo (USDA NAIP via USGS The National Map), exported for the
+  // exact extent below in lat/lon and mapped to local feet so it lines up with the map data.
+  var AERIAL = { x0: -1000.2, x1: 1012.8, z0: -1012.8, z1: 1028.2 };
+  var aerial = new THREE.Mesh(new THREE.PlaneGeometry(AERIAL.x1 - AERIAL.x0, AERIAL.z1 - AERIAL.z0),
+    new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 }));
+  aerial.rotation.x = -Math.PI / 2;
+  aerial.position.set((AERIAL.x0 + AERIAL.x1) / 2, 0.02, (AERIAL.z0 + AERIAL.z1) / 2);
+  aerial.receiveShadow = true; scene.add(aerial);
+  new THREE.TextureLoader().load('aerial.jpg', function (t) {
+    t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    aerial.material.map = t; aerial.material.needsUpdate = true;
+  });
   (SITE.areas || []).forEach(function (a) { if (a.type === 'parking') flatPoly(a.pts, C.asphalt, 0.07); });
 
   // ---------- streets and paths (real alignments) ----------
@@ -532,11 +557,24 @@
     var m = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.8), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cv) }));
     m.position.set(13.2, 8.8, 4.22); home.add(m);
   })();
-  // gold outline of the mapped footprint
-  (function () {
-    var pts = homeB.pts.concat([homeB.pts[0]]).map(function (p) { return new THREE.Vector3(p[0], 0.3, p[1]); });
-    scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0xd4a74a })));
-  })();
+  // County parcel lines (Marin County CDA / Assessor; not survey accurate).
+  // No. 24's lot (APN 157-860-10) in bold gold, other Hamilton Cottages parcels in light gold,
+  // the rest of the neighbourhood in thin white.
+  var lotLines = new THREE.Group(); scene.add(lotLines);
+  var homeParcel = null;
+  (SITE.parcels || []).forEach(function (p) {
+    if (p.home) homeParcel = p;
+    var w = p.home ? 1.0 : (p.community ? 0.45 : 0.3), col = p.home ? 0xf0b429 : (p.community ? 0xe8d39a : 0xffffff);
+    var m = new THREE.MeshBasicMaterial({ color: col, transparent: !p.home, opacity: p.home ? 1 : (p.community ? 0.85 : 0.55), depthWrite: false });
+    var y = p.home ? 0.4 : 0.3;
+    for (var i = 0; i < p.pts.length; i++) {
+      var a = p.pts[i], b = p.pts[(i + 1) % p.pts.length], dx = b[0] - a[0], dz = b[1] - a[1], len = Math.hypot(dx, dz);
+      if (len < 0.2) continue;
+      var seg = new THREE.Mesh(new THREE.PlaneGeometry(len + w, w), m);
+      seg.rotation.x = -Math.PI / 2; seg.rotation.z = -Math.atan2(dz, dx);
+      seg.position.set((a[0] + b[0]) / 2, y, (a[1] + b[1]) / 2); lotLines.add(seg);
+    }
+  });
   // side courtyard with a vine pergola on the east side (photo 30)
   pergola(15.5, -6, 5, 10, 8.5);
 
@@ -553,7 +591,6 @@
     box(scene, wl + 0.6, 0.45, 1.7, 0xd3c7ae, wxm, 6.7, fz);
     for (var px2 = xmin - 6; px2 <= xmax + 6; px2 += 24) box(scene, 2, 7.4, 2, 0xd9ceb8, px2, 3.7, fz);
     for (var x = xmin - 2; x < xmax + 2; x += 8) box(scene, 8.2, 5.5, 0.3, 0x9b7b5a, x + 4, 2.75, zmin - 2.5);
-    flatPoly([[xmin - 8, fz - 1], [xmax + 8, fz - 1], [xmax + 8, zmin], [xmin - 8, zmin]], 0x8db05f, 0.04);
   })();
 
   // ---------- the commons ----------
@@ -566,8 +603,6 @@
   var PLAZA = { x: 66, z: 85 }, KITCHEN = { x: 69, z: 56 }, LIVING = { x: 74, z: 110 }, FIRE = { x: 68, z: 84 }, BIRD = { x: 34, z: 58 };
   var GARDEN = { x: 142, z: 262 }, ENTRY = { x: 4, z: 133 }, ENTRY_DIR = [0.81, -0.58]; // walkway heading from parking toward courtyard
   (function () {
-    var lawn = new THREE.Mesh(new THREE.CircleGeometry(60, 40), mat(C.lawn));
-    lawn.rotation.x = -Math.PI / 2; lawn.position.set(CX, 0.03, CZ); lawn.scale.set(1, 1.15, 1); lawn.receiveShadow = true; scene.add(lawn);
     // walkways along the front porches of the north row and the east row
     ribbon([[-62, 31], [CX + 18, 33]], 5, C.concrete, 0.11);
     ribbon([[CX + 18, 33], [CX + 22, CZ + 120]], 5, C.concrete, 0.11);
@@ -687,7 +722,7 @@
   })();
   var SPOTS = [
     { home: true, name: '24 Cottage Ln', v: H(0, 36, -14), photos: ['01-exterior-front', '02-exterior-angle', '03-front-porch'],
-      text: 'A 2020 Ryder Homes craftsman in the 16-home Hamilton Cottages pocket neighborhood: 3 bed, 2.5 bath, 1,768 sq ft on a 2,008 sq ft lot. It is a Plan 2 home on the city-approved site plan, with its front porch facing the shared courtyard and its back to Hamilton Parkway. $999,000.' },
+      text: 'A 2020 Ryder Homes craftsman in the 16-home Hamilton Cottages pocket neighborhood: 3 bed, 2.5 bath, 1,768 sq ft on a 2,008 sq ft lot. It is a Plan 2 home on the city-approved site plan, with its front porch facing the shared courtyard and its back to Hamilton Parkway. County parcel APN 157-860-10 (about 2,071 sq ft on the county map, which is not survey accurate). Ground level is about 31 ft above sea level (USGS lidar). $999,000.' },
     { near: true, name: 'Front porch', v: H(-12, 12.2, 12.6), photos: ['03-front-porch', '01-exterior-front', '02-exterior-angle'],
       text: 'Covered front porch with a horizontal-board railing, opening onto the community walkway and commons.' },
     { near: true, name: 'Living room', v: H(-10, 8, 0), photos: ['04-living-room', '05-living-room-stairs', '07-great-room', '06-living-to-kitchen'], approx: true,
@@ -707,7 +742,7 @@
     { near: true, name: 'Side courtyard', v: new THREE.Vector3(18, 11, -1), photos: ['30-side-courtyard'], approx: true,
       text: 'Private side courtyard with a vine-covered pergola. Hamilton Cottages homes have private, fenced yards.' },
     { name: 'Garages & guest parking', v: new THREE.Vector3(garageC[0], 26, garageC[1]), photos: [], approx: true,
-      text: 'Every home has its own two-car garage. Per the approved plans, the garages are grouped along Cottage Lane on the west and south edges, some with bonus rooms above, next to a 16-space guest parking area. The listing shows a detached 2-car garage for No. 24; the public plans don\'t say which one is its.' },
+      text: 'Every home has its own two-car garage. Per the approved plans, the garages are grouped along Cottage Lane on the west and south edges, some with bonus rooms above, next to a 16-space guest parking area. The county parcel map shows 12 small separate garage lots (about 450 to 790 sq ft) along the lane. The listing shows a detached 2-car garage for No. 24; the public records don\'t say which one is its.' },
     { name: 'Outdoor kitchen', v: new THREE.Vector3(KITCHEN.x, 13, KITCHEN.z), photos: ['31-community-pergola'],
       text: 'Trellis-covered outdoor kitchen with a BBQ island and dining table, part of the central social zone on the approved landscape plan.' },
     { name: 'Community courtyard', v: new THREE.Vector3(PLAZA.x, 9, PLAZA.z), photos: ['31-community-pergola', '32-community-firepit'],
@@ -815,13 +850,18 @@
     document.querySelectorAll('#views button[data-v]').forEach(function (b) { b.classList.toggle('on', b.dataset.v === name); });
   }
   document.querySelectorAll('#views button[data-v]').forEach(function (b) { b.addEventListener('click', function () { goTo(b.dataset.v); }); });
-  var spinBtn = document.getElementById('spin');
+  document.getElementById('tgAerial').addEventListener('click', function () { aerial.visible = !aerial.visible; this.classList.toggle('on', aerial.visible); });
+  document.getElementById('tgLots').addEventListener('click', function () { lotLines.visible = !lotLines.visible; this.classList.toggle('on', lotLines.visible); });  var spinBtn = document.getElementById('spin');
   spinBtn.addEventListener('click', function () { controls.autoRotate = !controls.autoRotate; spinBtn.classList.toggle('on', controls.autoRotate); });
   controls.addEventListener('start', function () {
     anim = null;
     document.querySelectorAll('#views button[data-v]').forEach(function (b) { b.classList.remove('on'); });
     document.getElementById('hint').style.opacity = '0';
   });
+  // keep the view buttons just below the top bar, whatever its height on this screen
+  function placeViews() { document.getElementById('views').style.top = (document.querySelector('.topbar').offsetHeight + 8) + 'px'; }
+  placeViews();
+  window.addEventListener('resize', placeViews);
   window.addEventListener('resize', function () {
     camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
