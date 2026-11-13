@@ -200,6 +200,23 @@
     t.repeat.set(4, Math.max(1, h / 2.2));
     return (sidingCache[key] = new THREE.MeshStandardMaterial({ map: t, roughness: 0.9 }));
   }
+  var shingleCache = {};
+  function shingleMat(color) {
+    if (shingleCache[color]) return shingleCache[color];
+    var cv = document.createElement('canvas'); cv.width = 64; cv.height = 64;
+    var g = cv.getContext('2d'), base = new THREE.Color(color);
+    g.fillStyle = '#' + base.getHexString(); g.fillRect(0, 0, 64, 64);
+    for (var row = 0; row < 8; row++) {
+      var off = (row % 2) * 5;
+      for (var x = -off; x < 64; x += 10) {
+        var shade = 0.92 + ((x * 7 + row * 13) % 10) / 70;
+        g.fillStyle = '#' + base.clone().multiplyScalar(shade).getHexString(); g.fillRect(x + 1, row * 8, 9, 7);
+      }
+      g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(0, row * 8 + 7, 64, 1);
+    }
+    var t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 3);
+    return (shingleCache[color] = new THREE.MeshStandardMaterial({ map: t, roughness: 0.95 }));
+  }
   function box(parent, w, h, d, m, x, y, z, noShadow) {
     var mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), typeof m === 'number' ? mat(m) : m);
     mesh.position.set(x, y, z);
@@ -261,7 +278,11 @@
     // City approval: two-storey homes up to 27 ft tall (1.2 + 17.5 + 8 = 26.7 ft to the ridge).
     var mx = -4, mw = 20, mh = 17.5, mz = 6 - md / 2;
     box(g, mw + 0.4, 1.2, md + 0.4, C.found, mx, 0.6, mz);
-    box(g, mw, mh, md, wall, mx, 1.2 + mh / 2, mz);
+    // Plan 2 elevations (sheet A2.2): lap siding on the ground floor, shingles upstairs and in the gables.
+    var shake = shingleMat(new THREE.Color(o.siding).multiplyScalar(0.9).getHex());
+    box(g, mw, 9.4, md, wall, mx, 1.2 + 4.7, mz);
+    box(g, mw, mh - 9.4, md, shake, mx, 1.2 + 9.4 + (mh - 9.4) / 2, mz);
+    wall = shake;
     box(g, mw + 0.6, 0.5, md + 0.6, C.trim, mx, 1.2 + 9.4, mz, true);
     var r = gable(mw, md, 1.2 + mh, 8, o.roof || C.roof, wall, 1.4); r.position.set(mx, 0, mz); g.add(r);
     var wx = 10, ww = 8, wd = o.wd || Math.max(18, md - 4), wz = 4 - wd / 2, wh = 9.5;
@@ -535,48 +556,73 @@
     flatPoly([[xmin - 8, fz - 1], [xmax + 8, fz - 1], [xmax + 8, zmin], [xmin - 8, zmin]], 0x8db05f, 0.04);
   })();
 
-  // ---------- the commons: garden, paths, gathering areas ----------
-  // Positions follow the open courtyard between the homes in aerial imagery (approximate).
+  // ---------- the commons ----------
+  // Layout from the city-approved Preliminary Landscape Plan (Ripley Design Group,
+  // Apr 12 2016, sheet L1), fitted onto the mapped footprints (fit error 2-6 ft),
+  // plus the Design Review details (Apr 19 2017): perimeter walkway, decomposed-granite
+  // path, outdoor kitchen, fire pit, outdoor living room, bird & butterfly garden,
+  // community garden and the public art piece at the south end of the common area.
   var CX = communityCentre[0], CZ = communityCentre[1];
+  var PLAZA = { x: 66, z: 85 }, KITCHEN = { x: 69, z: 56 }, LIVING = { x: 74, z: 110 }, FIRE = { x: 68, z: 84 }, BIRD = { x: 34, z: 58 };
+  var GARDEN = { x: 142, z: 262 }, ENTRY = { x: 4, z: 133 }, ENTRY_DIR = [0.81, -0.58]; // walkway heading from parking toward courtyard
   (function () {
-    // shared lawn
     var lawn = new THREE.Mesh(new THREE.CircleGeometry(60, 40), mat(C.lawn));
     lawn.rotation.x = -Math.PI / 2; lawn.position.set(CX, 0.03, CZ); lawn.scale.set(1, 1.15, 1); lawn.receiveShadow = true; scene.add(lawn);
-    // walkway along the front porches of the north row, and up the east row
+    // walkways along the front porches of the north row and the east row
     ribbon([[-62, 31], [CX + 18, 33]], 5, C.concrete, 0.11);
     ribbon([[CX + 18, 33], [CX + 22, CZ + 120]], 5, C.concrete, 0.11);
-    // City approval: a walkway encircles the perimeter of the central common area,
-    // with a decomposed-granite pathway inside the courtyard.
-    var ring = new THREE.Mesh(new THREE.RingGeometry(26, 29.5, 64), mat(C.concrete));
-    ring.rotation.x = -Math.PI / 2; ring.position.set(52, 0.1, 86); ring.scale.set(1, 1.3, 1); ring.receiveShadow = true; scene.add(ring);
-    var dgLoop = new THREE.Mesh(new THREE.RingGeometry(12.5, 15, 48), mat(C.dg));
-    dgLoop.rotation.x = -Math.PI / 2; dgLoop.position.set(52, 0.105, 92); dgLoop.receiveShadow = true; scene.add(dgLoop);
-    var plaza = new THREE.Mesh(new THREE.CircleGeometry(13, 32), mat(0xd2ccbf));
-    plaza.rotation.x = -Math.PI / 2; plaza.position.set(CX - 8, 0.12, CZ - 22); plaza.receiveShadow = true; scene.add(plaza);
-    ribbon([[CX - 8, CZ - 9], [CX - 8, CZ - 26], [-2, 31]], 4.5, C.dg, 0.1);
-    ribbon([[80, 122], [86, 140], [88, 165]], 4.5, C.concrete, 0.1); // south walk toward Cottage Lane / guest parking
+    // walkway around the perimeter of the central common area
+    var ring = new THREE.Mesh(new THREE.RingGeometry(27, 30.5, 64), mat(C.concrete));
+    ring.rotation.x = -Math.PI / 2; ring.position.set(58, 0.1, 86); ring.scale.set(1, 1.3, 1); ring.receiveShadow = true; scene.add(ring);
+    // paved plaza with decorative scored concrete
+    var plaza = new THREE.Mesh(new THREE.PlaneGeometry(24, 24), mat(0xd6cfc2));
+    plaza.rotation.x = -Math.PI / 2; plaza.rotation.z = -0.07; plaza.position.set(PLAZA.x, 0.12, PLAZA.z); plaza.receiveShadow = true; scene.add(plaza);
+    for (var s = -9; s <= 9; s += 6) {
+      box(scene, 24, 0.02, 0.25, 0xb9b1a3, PLAZA.x, 0.13, PLAZA.z + s, true);
+      box(scene, 0.25, 0.02, 24, 0xb9b1a3, PLAZA.x + s, 0.13, PLAZA.z, true);
+    }
+    // decomposed-granite pathways through the courtyard
+    ribbon([[BIRD.x, BIRD.z], [PLAZA.x - 10, PLAZA.z - 6]], 4.5, C.dg, 0.105);
+    ribbon([[KITCHEN.x, KITCHEN.z + 6], [PLAZA.x, PLAZA.z - 12]], 4.5, C.dg, 0.105);
+    ribbon([[PLAZA.x + 3, PLAZA.z + 12], [LIVING.x, LIVING.z - 6]], 4.5, C.dg, 0.105);
+    ribbon([[KITCHEN.x - 6, KITCHEN.z - 4], [-2, 31]], 4.5, C.dg, 0.1);
+    // walk south toward Cottage Lane / guest parking, and the main pedestrian entry
+    ribbon([[84, 122], [88, 140], [90, 165]], 4.5, C.concrete, 0.1);
+    ribbon([[ENTRY.x - ENTRY_DIR[0] * 18, ENTRY.z - ENTRY_DIR[1] * 18], [ENTRY.x, ENTRY.z], [ENTRY.x + ENTRY_DIR[0] * 16, ENTRY.z + ENTRY_DIR[1] * 16], [46, 98]], 5, C.concrete, 0.1);
+    // bird & butterfly garden: round planting with four small ornamental trees
+    var bg = new THREE.Mesh(new THREE.RingGeometry(6, 9, 40), mat(C.dg));
+    bg.rotation.x = -Math.PI / 2; bg.position.set(BIRD.x, 0.11, BIRD.z); scene.add(bg);
+    for (var t = 0; t < 4; t++) { var a = t / 4 * Math.PI * 2 + 0.4; tree(BIRD.x + Math.cos(a) * 11, BIRD.z + Math.sin(a) * 11, 0.48, 0xd8b43a); }
+    for (var f = 0; f < 14; f++) {
+      var fa = f / 14 * Math.PI * 2, fl = new THREE.Mesh(new THREE.SphereGeometry(0.9, 8, 6), mat([0xb37ad1, 0xe2a63b, 0x7aa64a, 0xd46a8a][f % 4]));
+      fl.position.set(BIRD.x + Math.cos(fa) * 4, 0.7, BIRD.z + Math.sin(fa) * 4); fl.castShadow = true; scene.add(fl);
+    }
   })();
-  // gazebo / vine pergola with outdoor kitchen
-  pergola(CX - 16, CZ - 30, 16, 12, 9);
-  box(scene, 10, 3.2, 2.6, 0x7a7065, CX - 8, 1.6, CZ - 18.5);
-  box(scene, 10.4, 0.3, 3, 0xcfc8bc, CX - 8, 3.35, CZ - 18.5);
-  // fire pit with chairs
-  cyl(scene, 2.4, 2.6, 1.4, 0x6f6a64, CX + 12, 0.7, CZ + 6, 20);
-  cyl(scene, 1.7, 1.7, 0.3, 0x2c2a28, CX + 12, 1.42, CZ + 6, 20);
-  for (var i = 0; i < 6; i++) {
-    var a = i / 6 * Math.PI * 2, ch = new THREE.Group();
-    box(ch, 2.2, 0.4, 2.2, C.wood, 0, 1.4, 0); box(ch, 2.2, 2.4, 0.3, C.wood, 0, 2.5, -1.1);
-    ch.position.set(CX + 12 + Math.cos(a) * 6, 0, CZ + 6 + Math.sin(a) * 6); ch.lookAt(CX + 12, 0, CZ + 6); scene.add(ch);
+  // outdoor kitchen under a trellis (BBQ island + dining table)
+  pergola(KITCHEN.x - 8, KITCHEN.z - 6, 16, 12, 9);
+  box(scene, 10, 3.2, 2.6, 0x7a7065, KITCHEN.x, 1.6, KITCHEN.z - 3);
+  box(scene, 10.4, 0.3, 3, 0xcfc8bc, KITCHEN.x, 3.35, KITCHEN.z - 3);
+  function diningTable(x, z) {
+    box(scene, 6, 0.3, 3, C.wood, x, 2.6, z);
+    [-2.2, 2.2].forEach(function (dx) { box(scene, 0.3, 2.5, 2.4, 0x444444, x + dx, 1.25, z); });
+    [-2.4, 2.4].forEach(function (dz) { box(scene, 6, 0.3, 1, C.wood, x, 1.5, z + dz); });
   }
-  // dining tables beside the BBQ island (outdoor kitchen)
-  [[CX - 18, CZ - 8], [CX + 2, CZ - 8]].forEach(function (p) {
-    box(scene, 6, 0.3, 3, C.wood, p[0], 2.6, p[1]);
-    [-2.2, 2.2].forEach(function (dx) { box(scene, 0.3, 2.5, 2.4, 0x444444, p[0] + dx, 1.25, p[1]); });
-    [-2.4, 2.4].forEach(function (dz) { box(scene, 6, 0.3, 1, C.wood, p[0], 1.5, p[1] + dz); });
-  });
+  diningTable(KITCHEN.x, KITCHEN.z + 3);
+  // fire pit with chairs, on the plaza
+  cyl(scene, 2.4, 2.6, 1.4, 0x6f6a64, FIRE.x, 0.7, FIRE.z, 20);
+  cyl(scene, 1.7, 1.7, 0.3, 0x2c2a28, FIRE.x, 1.42, FIRE.z, 20);
+  for (var i = 0; i < 6; i++) {
+    var a2 = i / 6 * Math.PI * 2, ch = new THREE.Group();
+    box(ch, 2.2, 0.4, 2.2, C.wood, 0, 1.4, 0); box(ch, 2.2, 2.4, 0.3, C.wood, 0, 2.5, -1.1);
+    ch.position.set(FIRE.x + Math.cos(a2) * 6, 0, FIRE.z + Math.sin(a2) * 6); ch.lookAt(FIRE.x, 0, FIRE.z); scene.add(ch);
+  }
+  // outdoor living room under a second trellis
+  pergola(LIVING.x - 8, LIVING.z - 6, 16, 12, 9);
+  box(scene, 8, 1.6, 3, 0x6d7f8c, LIVING.x, 0.8, LIVING.z - 3); box(scene, 8, 2.6, 0.8, 0x6d7f8c, LIVING.x, 1.3, LIVING.z - 4.3);
+  box(scene, 4, 1.2, 2.5, C.wood, LIVING.x, 0.6, LIVING.z + 1);
   // public art (City approval): an interactive chrome sculpture bicycle, 6-8 ft tall,
   // at the south end of the central common area, reached by two concrete paths
-  var art = { x: 78, z: 127 };
+  var art = { x: 84, z: 128 };
   (function () {
     var g = new THREE.Group(), chrome = mat(0xdfe6ee, { metalness: 0.9, roughness: 0.15 });
     [-3.4, 3.4].forEach(function (dx, i) {
@@ -594,28 +640,34 @@
     box(g, 1.6, 0.3, 0.6, chrome, -1.2, 6.3, 0, true); box(g, 0.25, 0.25, 2.2, chrome, 2.5, 6.8, 0, true);
     box(g, 9, 0.6, 3, 0xcfc8bc, 0, 0.3, 0);
     g.position.set(art.x, 0, art.z); g.rotation.y = 0.35; scene.add(g);
-    ribbon([[art.x - 16, art.z - 8], [art.x - 3, art.z]], 4, C.concrete, 0.11);
-    ribbon([[art.x + 4, art.z - 16], [art.x + 1, art.z - 3]], 4, C.concrete, 0.11);
+    ribbon([[art.x - 14, art.z - 8], [art.x - 3, art.z]], 4, C.concrete, 0.11);
+    ribbon([[art.x + 2, art.z - 15], [art.x + 1, art.z - 3]], 4, C.concrete, 0.11);
   })();
-  // entry arbor over Cottage Lane where it leaves Hamilton Parkway
+  // main pedestrian entry from the guest parking: wood arbor, bench, mail and parcel boxes
   (function () {
-    var e = null; cottageLn.forEach(function (r) { r.pts.forEach(function (p, i) { if (!e || p[1] < e.p[1]) e = { p: p, r: r, i: i }; }); });
-    if (!e) return;
-    var q = e.r.pts[e.i === 0 ? 1 : e.i - 1], dx = q[0] - e.p[0], dz = q[1] - e.p[1], l = Math.hypot(dx, dz);
-    var ux = dx / l, uz = dz / l, cx = e.p[0] + ux * 40, cz = e.p[1] + uz * 40, nx = -uz, nz = ux, g = new THREE.Group();
-    [-13, 13].forEach(function (s) { [-2, 2].forEach(function (t) { box(g, 1.2, 11, 1.2, C.trim, s, 5.5, t); }); });
-    box(g, 30, 1, 1, C.trim, 0, 11.2, -2); box(g, 30, 1, 1, C.trim, 0, 11.2, 2);
-    for (var k = -12; k <= 12; k += 2) box(g, 0.4, 0.6, 6, C.trim, k, 11.9, 0, true);
-    g.position.set(cx, 0, cz); g.rotation.y = Math.atan2(nx, nz) + Math.PI / 2; scene.add(g);
+    var g = new THREE.Group();
+    // local z runs along the walkway between the two Plan 4 homes (toward the courtyard);
+    // local -z is the guest-parking side, where the mail/parcel boxes and bench sit.
+    [-3.2, 3.2].forEach(function (s) { [-2.5, 2.5].forEach(function (t) { box(g, 0.7, 9.5, 0.7, C.wood, s, 4.75, t); }); });
+    [-3.2, 3.2].forEach(function (s) { box(g, 0.7, 0.8, 7.5, C.wood, s, 9.6, 0); });
+    for (var k = -3; k <= 3; k += 1.2) box(g, 7.6, 0.45, 0.35, C.wood, 0, 10.2, k, true);
+    box(g, 1.6, 4.6, 5, 0x4a5560, 5.5, 2.3, -11); // mail + parcel boxes
+    box(g, 1.6, 0.4, 5, C.wood, -5.5, 1.5, -11); box(g, 0.3, 1.6, 5, C.wood, -6.2, 2.4, -11); // bench
+    g.position.set(ENTRY.x, 0, ENTRY.z); g.rotation.y = Math.atan2(ENTRY_DIR[0], ENTRY_DIR[1]); scene.add(g);
   })();
-  // community garden beds and planting
-  for (var gi = 0; gi < 6; gi++) box(scene, 4, 1.6, 9, 0x8a6a4a, 62 + (gi % 3) * 6, 0.8, 100 + Math.floor(gi / 3) * 11);
-  for (var si = 0; si < 26; si++) {
-    var aa = si / 26 * Math.PI * 2, rr = 17 + (si % 4) * 1.8;
-    var sh = new THREE.Mesh(new THREE.SphereGeometry(1.1 + (si % 3) * 0.4, 10, 8), mat([0x6e9a45, 0xa2b85a, 0xc98f4a, 0x7c8f50][si % 4]));
-    sh.position.set(52 + Math.cos(aa) * rr, 0.9, 92 + Math.sin(aa) * rr * 1.2); sh.castShadow = true; scene.add(sh);
-  }
-  [[78, 58], [26, 52], [86, 100], [30, 112], [-40, 36], [92, 38]].forEach(function (p, i) { tree(p[0], p[1], 0.8 + (i % 3) * 0.12, [0x8db33a, 0xc9b83a, 0x6e9e3c][i % 3]); });
+  // community garden (far south-east corner): raised beds, tool shed, potting bench, fruit trees
+  (function () {
+    flatPoly([[GARDEN.x - 16, GARDEN.z - 14], [GARDEN.x + 14, GARDEN.z - 14], [GARDEN.x + 14, GARDEN.z + 16], [GARDEN.x - 16, GARDEN.z + 16]], 0xc9b48c, 0.08);
+    for (var gi = 0; gi < 6; gi++) {
+      box(scene, 3.5, 2, 8, 0x8a6a4a, GARDEN.x - 11 + (gi % 3) * 7, 1, GARDEN.z - 6 + Math.floor(gi / 3) * 12);
+      box(scene, 3, 0.3, 7.5, 0x6f8f3a, GARDEN.x - 11 + (gi % 3) * 7, 2.1, GARDEN.z - 6 + Math.floor(gi / 3) * 12, true);
+    }
+    box(scene, 7, 8, 6, 0x9aa39a, GARDEN.x + 9, 4, GARDEN.z + 10); // tool shed
+    var sr = gable(7, 6, 8, 2.5, C.roof, mat(0x9aa39a), 0.6); sr.position.set(GARDEN.x + 9, 0, GARDEN.z + 10); scene.add(sr);
+    [[GARDEN.x - 14, GARDEN.z + 12], [GARDEN.x - 6, GARDEN.z + 14], [GARDEN.x + 12, GARDEN.z - 12]].forEach(function (p, i) { tree(p[0], p[1], 0.42, [0x6e9e3c, 0x7da23c, 0x5f8f3a][i]); });
+  })();
+  // large shade trees from the landscape plan
+  [[102, 91], [50, 123], [30, 97], [-14, 41], [-45, 48], [93, 150], [93, 174]].forEach(function (p, i) { tree(p[0], p[1], 0.85 + (i % 3) * 0.1, [0x5f8f6a, 0x6e9e3c, 0x7da23c][i % 3]); });
   // front-yard planting at No. 24
   for (var j = 0; j < 12; j++) {
     var shb = new THREE.Mesh(new THREE.SphereGeometry(0.9 + (j % 3) * 0.3, 10, 8), mat([0x7a8f5a, 0x9aa66a, 0x8b5a4a, 0x6f8c4a][j % 4]));
@@ -627,7 +679,7 @@
   var IMG = function (n) { return 'images/' + n + '.jpg'; };
   function H(x, y, z) { return home.localToWorld(new THREE.Vector3(x, y, z)); }
   function bc(id) { var b = SITE.buildings.filter(function (q) { return q.id === id && q.kind === 'community'; })[0]; return b ? centroid(b.pts) : [CX, CZ]; }
-  var garageC = bc('571'), roomC = bc('568');
+  var garageC = bc('571'), roomC = bc('566');
   var entry = (function () {
     var best = null;
     cottageLn.forEach(function (r) { r.pts.forEach(function (p) { if (!best || p[1] < best[1]) best = p; }); });
@@ -635,7 +687,7 @@
   })();
   var SPOTS = [
     { home: true, name: '24 Cottage Ln', v: H(0, 36, -14), photos: ['01-exterior-front', '02-exterior-angle', '03-front-porch'],
-      text: 'A 2020 Ryder Homes craftsman in the 16-home Hamilton Cottages pocket neighborhood: 3 bed, 2.5 bath, 1,768 sq ft on a 2,008 sq ft lot. Its front porch faces the shared garden; the back faces Hamilton Parkway. $999,000.' },
+      text: 'A 2020 Ryder Homes craftsman in the 16-home Hamilton Cottages pocket neighborhood: 3 bed, 2.5 bath, 1,768 sq ft on a 2,008 sq ft lot. It is a Plan 2 home on the city-approved site plan, with its front porch facing the shared courtyard and its back to Hamilton Parkway. $999,000.' },
     { near: true, name: 'Front porch', v: H(-12, 12.2, 12.6), photos: ['03-front-porch', '01-exterior-front', '02-exterior-angle'],
       text: 'Covered front porch with a horizontal-board railing, opening onto the community walkway and commons.' },
     { near: true, name: 'Living room', v: H(-10, 8, 0), photos: ['04-living-room', '05-living-room-stairs', '07-great-room', '06-living-to-kitchen'], approx: true,
@@ -655,17 +707,25 @@
     { near: true, name: 'Side courtyard', v: new THREE.Vector3(18, 11, -1), photos: ['30-side-courtyard'], approx: true,
       text: 'Private side courtyard with a vine-covered pergola. Hamilton Cottages homes have private, fenced yards.' },
     { name: 'Garages & guest parking', v: new THREE.Vector3(garageC[0], 26, garageC[1]), photos: [], approx: true,
-      text: 'Garages for the homes and extra guest parking sit along Cottage Lane, on the west side of the community. The listing shows a detached 2-car garage for No. 24; which garage building it is isn\'t confirmed here.' },
-    { name: 'Community courtyard', v: new THREE.Vector3(CX - 8, 14, CZ - 22), photos: ['31-community-pergola', '32-community-firepit'], approx: true,
-      text: 'The homes cluster around a central garden with gazebos, outdoor kitchens/BBQs, fire pits and seating areas.' },
-    { name: 'Fire pit', v: new THREE.Vector3(CX + 12, 7, CZ + 6), photos: ['32-community-firepit', '31-community-pergola'], approx: true,
+      text: 'Every home has its own two-car garage. Per the approved plans, the garages are grouped along Cottage Lane on the west and south edges, some with bonus rooms above, next to a 16-space guest parking area. The listing shows a detached 2-car garage for No. 24; the public plans don\'t say which one is its.' },
+    { name: 'Outdoor kitchen', v: new THREE.Vector3(KITCHEN.x, 13, KITCHEN.z), photos: ['31-community-pergola'],
+      text: 'Trellis-covered outdoor kitchen with a BBQ island and dining table, part of the central social zone on the approved landscape plan.' },
+    { name: 'Community courtyard', v: new THREE.Vector3(PLAZA.x, 9, PLAZA.z), photos: ['31-community-pergola', '32-community-firepit'],
+      text: 'The central social zone from the approved landscape plan: a decorative scored-concrete plaza with a fire pit, an outdoor kitchen, an outdoor living room and a bird & butterfly garden, ringed by a perimeter walkway with decomposed-granite paths.' },
+    { name: 'Outdoor living room', v: new THREE.Vector3(LIVING.x, 13, LIVING.z), photos: [],
+      text: 'A second trellis with lounge seating, the outdoor living room on the approved landscape plan.' },
+    { name: 'Bird & butterfly garden', v: new THREE.Vector3(BIRD.x, 8, BIRD.z), photos: ['33-community-green'],
+      text: 'Round garden ringed by small ornamental trees, part of the courtyard on the approved landscape plan.' },
+    { name: 'Fire pit', v: new THREE.Vector3(FIRE.x, 6, FIRE.z), photos: ['32-community-firepit', '31-community-pergola'],
       text: 'Community fire pit with Adirondack-style seating.' },
-    { name: 'Community garden', v: new THREE.Vector3(68, 6, 106), photos: ['33-community-green'], approx: true,
-      text: 'Landscaped commons with a community garden and decomposed-granite paths.' },
-    { name: 'Public art', v: new THREE.Vector3(art.x, 10, art.z), photos: [], approx: true,
+    { name: 'Community garden', v: new THREE.Vector3(GARDEN.x, 10, GARDEN.z), photos: [],
+      text: 'Resident garden in the south-east corner: tool shed, potting bench, accessible picnic table, vertical planting walls, compost bins, raised planting beds, and citrus and apple trees (approved landscape plan).' },
+    { name: 'Main entry & mailboxes', v: new THREE.Vector3(ENTRY.x, 13, ENTRY.z), photos: [],
+      text: 'The main pedestrian entry from the guest parking: a wood arbor with a bench and mail and parcel boxes (approved landscape plan).' },
+    { name: 'Public art', v: new THREE.Vector3(art.x, 10, art.z), photos: [],
       text: 'An interactive sculpture of a bicycle, about 6 to 8 ft tall, in reflective stainless steel with colored translucent wheels. Residents and visitors can write on it with dry-erase markers. It stands at the south end of the central common area, per the City of Novato design approval.' },
-    { name: 'Community room', v: new THREE.Vector3(roomC[0], 28, roomC[1]), photos: [], approx: true,
-      text: 'Residents can use the Community Center, with a kitchen, flat-screen TV and comfortable seating.' },
+    { name: 'Community room', v: new THREE.Vector3(roomC[0], 26, roomC[1]), photos: [],
+      text: 'The community building at the south end, beside the garages (approved site plan). Residents can use it for events, with a kitchen, flat-screen TV and comfortable seating.' },
     { name: 'Entrance from Hamilton Pkwy', v: new THREE.Vector3(entry[0], 9, entry[1]), photos: ['34-hamilton-cottages-entry'],
       text: 'Cottage Lane enters the community from Hamilton Parkway. Hamilton Cottages is a 62+ community (at least one owner on title 62 or older). HOA $495/mo covers common areas, the clubhouse and trash.' }
   ];
@@ -735,8 +795,8 @@
     bird:      { p: [70, 95, 125],   t: [10, 6, 20] },
     // A Cottage Lane building sits ~44-68 ft south of No. 24, so the open view
     // of the porch is from the south-east, across the courtyard.
-    front:     { p: [42, 16, 64],    t: [-1, 10, 8] },
-    street:    { p: [29, 5.5, 50],   t: [-2, 9, 10] },
+    front:     { p: [14, 15, 68],    t: [-1, 10, 8] },
+    street:    { p: [13, 5.5, 47],   t: [-2, 9, 10] },
     back:      { p: [-22, 38, -98],  t: [0, 8, -8] },   // from above Hamilton Parkway
     community: { p: [CX - 150, 150, CZ + 210], t: [CX, 4, CZ] }
   };
